@@ -4,351 +4,495 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Hanychov Hunt – Prototype</title>
-
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#111827" />
-
-  <!-- Leaflet -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="icon" href="icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <style>
-    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background: #0b1220; color: #e5e7eb; overscroll-behavior: none; }
-
-    /* iOS Safari fix: nepoužíváme 1fr pro mapu, ale explicitní výšku přes JS */
-    #app { display: flex; flex-direction: column; height: 100dvh; }
-    header { flex-shrink: 0; padding: 12px 14px; padding-top: max(12px, env(safe-area-inset-top)); display: flex; gap: 10px; align-items: center; justify-content: space-between; background: #111827; border-bottom: 1px solid #1f2937; }
-    header .left { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
-    header h1 { font-size: 14px; margin: 0; font-weight: 700; letter-spacing: .2px; }
-    header .badge { font-size: 12px; padding: 4px 8px; border: 1px solid #374151; border-radius: 999px; color: #cbd5e1; }
-    #map { flex: 1 1 0; width: 100%; min-height: 100px; }
-
-    footer { flex-shrink: 0; padding: 10px 14px; padding-bottom: max(10px, env(safe-area-inset-bottom)); background: #111827; border-top: 1px solid #1f2937; display: grid; gap: 8px; }
-    .row { display:flex; gap:10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
-    .stat { font-size: 13px; color: #cbd5e1; }
-    .stat b { color: #e5e7eb; }
-    button {
-      appearance: none; border: 1px solid #374151; background: #0b1220; color: #e5e7eb;
-      border-radius: 10px; padding: 10px 12px; font-weight: 700; font-size: 13px;
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    :root{
+      --bg:#0b1220;
+      --card:#0f172a;
+      --muted:#94a3b8;
+      --text:#e2e8f0;
+      --accent:#38bdf8;
+      --good:#22c55e;
+      --bad:#ef4444;
+      --warn:#fbbf24;
+      --radius:16px;
+      --shadow: 0 12px 40px rgba(0,0,0,.35);
     }
-    button:active { opacity: .75; }
-    button.primary { background: #1d4ed8; border-color: #2563eb; color: #fff; }
-    button:disabled { opacity: .4; cursor: default; }
-    .muted { color: #9ca3af; font-size: 12px; }
-    .pill { padding: 4px 8px; border-radius: 999px; border: 1px solid #374151; font-size: 12px; color: #cbd5e1; cursor: pointer; }
-    .pill:hover { border-color: #6b7280; }
-    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas; font-size: 12px; padding: 2px 6px; border: 1px solid #374151; border-radius: 8px; color:#cbd5e1; }
-
-    /* Slide-up panel otázky */
-    #questionPanel {
-      flex-shrink: 0;
-      background: #111827;
-      border-top: 2px solid #2563eb;
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height .3s ease;
+    html,body{height:100%; margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial; background:var(--bg); color:var(--text); overflow:hidden;}
+    /* Layout */
+    .app{position:fixed; inset:0; display:flex; flex-direction:column;}
+    header{
+      padding:12px 14px;
+      background:linear-gradient(180deg, rgba(15,23,42,.95), rgba(15,23,42,.75));
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid rgba(148,163,184,.18);
+      display:flex; align-items:center; gap:10px;
+      z-index: 30;
     }
-    #questionPanel.open {
-      max-height: 50dvh;
-      overflow-y: auto;
+    header .title{font-weight:800; letter-spacing:.2px; display:flex; flex-direction:column; line-height:1.05}
+    header .title small{font-weight:600; color:var(--muted); font-size:12px}
+    header .spacer{flex:1}
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px; border-radius:999px;
+      background:rgba(2,6,23,.55);
+      border:1px solid rgba(148,163,184,.18);
+      color:var(--text);
+      font-size:13px;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .pill b{font-variant-numeric: tabular-nums;}
+    .pill .dot{width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px rgba(56,189,248,.18);}
+    .pill.warn .dot{background:var(--warn); box-shadow:0 0 0 4px rgba(251,191,36,.18);}
+    .pill.good .dot{background:var(--good); box-shadow:0 0 0 4px rgba(34,197,94,.18);}
+    .pill.bad .dot{background:var(--bad); box-shadow:0 0 0 4px rgba(239,68,68,.18);}
+    .btn{
+      appearance:none; border:none;
+      padding:10px 12px;
+      border-radius:12px;
+      background:rgba(56,189,248,.16);
+      color:var(--text);
+      font-weight:700;
+      cursor:pointer;
+      border:1px solid rgba(56,189,248,.35);
+      transition: transform .08s ease, background .15s ease;
+      user-select:none;
+    }
+    .btn:active{transform: scale(.98);}
+    .btn.secondary{background:rgba(148,163,184,.10); border:1px solid rgba(148,163,184,.25);}
+    .btn.danger{background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.35);}
+    .btn:disabled{opacity:.45; cursor:not-allowed;}
+
+    main{flex:1; position:relative;}
+    #map { height: 100%; width: 100%; }
+
+    /* ===== Leaflet layer fix — ať mapa nikdy nepřekryje modal ===== */
+    .leaflet-pane,
+    .leaflet-control,
+    .leaflet-top,
+    .leaflet-bottom {
+      z-index: 10 !important;
+    }
+
+    .leaflet-popup {
+      z-index: 20 !important;
+    }
+
+    /* status banner */
+    .status{
+      position:absolute; left:12px; right:12px; bottom:12px;
+      background:rgba(15,23,42,.90);
+      border:1px solid rgba(148,163,184,.20);
+      border-radius:14px;
+      padding:10px 12px;
+      display:flex; align-items:center; gap:10px;
+      box-shadow: var(--shadow);
+      z-index: 25;
+      backdrop-filter: blur(10px);
+    }
+    .status .msg{flex:1; font-size:13px; color:var(--text);}
+    .status .acc{font-size:12px; color:var(--muted); white-space:nowrap;}
+
+    /* Question panel (bottom sheet) */
+    .panel{
+      position:absolute;
+      left:0; right:0;
+      bottom:-100%;
+      background: rgba(15,23,42,.96);
+      border-top:1px solid rgba(148,163,184,.20);
+      border-radius: 18px 18px 0 0;
+      padding: 14px 14px 16px;
+      box-shadow: var(--shadow);
+      transition: bottom .22s ease;
+      z-index: 100000; /* nad mapou + nad vším */
+      max-height: 78%;
+      overflow:auto;
       -webkit-overflow-scrolling: touch;
     }
-    .panel-inner { padding: 14px; display: grid; gap: 10px; }
-    .panel-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .panel-title { font-size: 13px; font-weight: 700; color: #93c5fd; }
-    .q { font-size: 15px; font-weight: 800; line-height: 1.4; }
-    .opt { display:flex; gap:10px; align-items:center; padding: 11px 12px; border: 1px solid #374151; border-radius: 10px; cursor: pointer; font-size: 14px; -webkit-tap-highlight-color: transparent; }
-    .opt input { transform: scale(1.2); flex-shrink: 0; }
-    .opt:hover { border-color: #6b7280; }
-    .opt.selected { border-color: #2563eb; background: rgba(37,99,235,.08); }
-    .timer { font-weight: 900; letter-spacing: .5px; font-size: 14px; padding: 3px 10px; border-radius: 999px; border: 1px solid #374151; color: #fbbf24; }
-    .timer.urgent { color: #f87171; border-color: rgba(239,68,68,.4); }
-    .result { padding: 10px 12px; border-radius: 10px; border: 1px solid #374151; font-size: 13px; line-height: 1.5; }
-    .ok  { border-color: rgba(34,197,94,.5);  background: rgba(34,197,94,.06); }
-    .bad { border-color: rgba(239,68,68,.5);  background: rgba(239,68,68,.06); }
-    .panel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-
-    /* Leaderboard drawer */
-    .drawer {
-      position: fixed; right: 0; top: 0; height: 100%; width: min(420px, 92vw);
-      background: #0b1220; border-left: 1px solid #1f2937;
-      transform: translateX(100%); transition: transform .2s ease;
-      display: grid; grid-template-rows: auto 1fr auto;
-      z-index: 200;
+    .panel.open{bottom:0;}
+    .panel .row{display:flex; align-items:center; gap:10px;}
+    .panel h2{margin:10px 0 6px; font-size:18px;}
+    .badge{
+      display:inline-flex; align-items:center;
+      padding:6px 10px; border-radius:999px;
+      background:rgba(2,6,23,.55);
+      border:1px solid rgba(148,163,184,.18);
+      color:var(--text);
+      font-size:12px; font-weight:700;
+      white-space:nowrap;
     }
-    .drawer.open { transform: translateX(0); }
-    .drawer .body { padding: 14px; overflow: auto; -webkit-overflow-scrolling: touch; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px 8px; border-bottom: 1px solid #1f2937; font-size: 13px; text-align: left; }
-    th { color: #cbd5e1; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
-    .lb-empty { padding: 32px 0; text-align: center; color: #6b7280; font-size: 13px; }
+    .timer{
+      margin-left:auto;
+      font-weight:800;
+      font-variant-numeric: tabular-nums;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.22);
+      background: rgba(2,6,23,.45);
+    }
+    .timer.urgent{border-color: rgba(239,68,68,.55); color: #fecaca;}
+    .qtext{color:var(--text); margin:10px 0 12px; font-size:14px; line-height:1.35;}
+
+    .opts{display:grid; gap:8px;}
+    label.opt{
+      display:flex; gap:10px; align-items:flex-start;
+      padding:10px 12px;
+      border-radius: 14px;
+      border:1px solid rgba(148,163,184,.22);
+      background: rgba(2,6,23,.38);
+      cursor:pointer;
+      transition: background .15s ease, border-color .15s ease, transform .08s ease;
+      user-select:none;
+    }
+    label.opt:hover{background: rgba(2,6,23,.50);}
+    label.opt:active{transform: scale(.99);}
+    label.opt input{margin-top:2px;}
+    label.opt.selected{border-color: rgba(56,189,248,.55); background: rgba(56,189,248,.08);}
+
+    .result{
+      margin-top:12px;
+      padding:10px 12px;
+      border-radius: 14px;
+      border:1px solid rgba(148,163,184,.22);
+      background: rgba(2,6,23,.38);
+      font-size:13px;
+      line-height:1.35;
+      display:none;
+    }
+    .result.good{border-color: rgba(34,197,94,.55); background: rgba(34,197,94,.08);}
+    .result.bad{border-color: rgba(239,68,68,.55); background: rgba(239,68,68,.08);}
+    .panel .actions{display:flex; gap:10px; margin-top:12px;}
+    .panel .actions .btn{flex:1;}
+
+    /* Modal backdrop (pro jistotu, kdybys ji někdy použil) */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      z-index: 99999;
+    }
+
+    /* leaderboard */
+    .lb{
+      position:absolute;
+      top:12px; right:12px;
+      width:min(360px, calc(100vw - 24px));
+      background:rgba(15,23,42,.90);
+      border:1px solid rgba(148,163,184,.20);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      z-index: 25;
+      overflow:hidden;
+      display:none;
+      backdrop-filter: blur(10px);
+    }
+    .lb header{
+      position:static;
+      border:none;
+      background:transparent;
+      padding:12px 12px 10px;
+    }
+    .lb header .title{font-size:14px}
+    .lb header .title small{font-size:11px}
+    .lb .content{padding:0 12px 12px;}
+    table{width:100%; border-collapse:collapse; font-size:12px;}
+    th,td{padding:8px 6px; border-bottom:1px solid rgba(148,163,184,.14); text-align:left;}
+    th{color:var(--muted); font-weight:800;}
+    tr:last-child td{border-bottom:none;}
+    .lb .muted{color:var(--muted);}
+    .lb-empty{padding:10px 0; color:var(--muted);}
+
+    /* small screens */
+    @media (max-width:480px){
+      header{gap:8px}
+      .btn{padding:10px 10px}
+      .pill{padding:8px 9px}
+    }
   </style>
 </head>
 <body>
-  <div id="app">
+  <div class="app">
     <header>
-      <div class="left">
-        <h1>Hanychov Hunt</h1>
-        <span id="status" class="badge">Čekám na GPS…</span>
+      <div class="title">
+        Hanychov Hunt
+        <small>prototyp — geolokační hra</small>
       </div>
-      <div class="left">
-        <span class="pill" id="nickPill">Přezdívka: —</span>
-        <button id="btnLeaderboard">Žebříček</button>
+      <div class="spacer"></div>
+
+      <div class="pill" id="pillScore" title="Skóre">
+        <span class="dot"></span>
+        <span>Skóre: <b id="score">0</b></span>
       </div>
+
+      <div class="pill" id="pillSaved" title="Uložený čas">
+        <span class="dot"></span>
+        <span>Čas: <b id="saved">0</b>s</span>
+      </div>
+
+      <button class="btn secondary" id="btnCenter" title="Centrovat na mě">📍</button>
+      <button class="btn secondary" id="btnLb" title="Leaderboard">🏆</button>
+      <button class="btn danger" id="btnReset" title="Reset">⟲</button>
     </header>
 
-    <div id="map"></div>
+    <main>
+      <div id="map"></div>
 
-    <!-- Panel otázky — 3. řádek gridu, vysune se pod mapu -->
-    <section id="questionPanel" aria-live="polite">
-      <div class="panel-inner">
-        <div class="panel-header">
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span class="panel-title" id="pointNameBadge">—</span>
-            <span class="badge" id="pointsBadge">—</span>
-          </div>
+      <div class="status" id="statusBar">
+        <div class="msg" id="statusMsg">Načítám…</div>
+        <div class="acc">Přesnost: <span id="accVal">—</span></div>
+      </div>
+
+      <div class="panel" id="questionPanel" aria-modal="true" role="dialog">
+        <div class="row">
+          <span class="badge" id="pointNameBadge">Bod</span>
+          <span class="badge" id="pointsBadge">0 bodů</span>
           <span class="timer" id="timer">03:00</span>
         </div>
-        <div class="q" id="questionText">—</div>
-        <div style="display:grid;gap:7px;">
-          <label class="opt"><input type="radio" name="ans" value="a"> <div><b>A)</b> <span id="optA"></span></div></label>
-          <label class="opt"><input type="radio" name="ans" value="b"> <div><b>B)</b> <span id="optB"></span></div></label>
-          <label class="opt"><input type="radio" name="ans" value="c"> <div><b>C)</b> <span id="optC"></span></div></label>
-          <label class="opt"><input type="radio" name="ans" value="d"> <div><b>D)</b> <span id="optD"></span></div></label>
-        </div>
-        <div id="resultBox" class="result" style="display:none;"></div>
-        <div class="panel-actions">
-          <button class="primary" id="btnSubmit">Odeslat odpověď</button>
-          <button id="btnClose">Zavřít</button>
-        </div>
-      </div>
-    </section>
+        <h2>Otázka</h2>
+        <div class="qtext" id="questionText">…</div>
 
-    <footer>
-      <div class="row">
-        <div class="stat">Body: <b id="score">0</b></div>
-        <div class="stat">Ušetřený čas: <b id="saved">0:00</b></div>
-        <div class="stat">GPS: <b id="acc">—</b></div>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="ans" value="a"><span><b>A)</b> <span id="optA">…</span></span></label>
+          <label class="opt"><input type="radio" name="ans" value="b"><span><b>B)</b> <span id="optB">…</span></span></label>
+          <label class="opt"><input type="radio" name="ans" value="c"><span><b>C)</b> <span id="optC">…</span></span></label>
+          <label class="opt"><input type="radio" name="ans" value="d"><span><b>D)</b> <span id="optD">…</span></span></label>
+        </div>
+
+        <div class="result" id="resultBox"></div>
+
+        <div class="actions">
+          <button class="btn" id="btnSubmit">Odeslat</button>
+          <button class="btn secondary" id="btnClose">Zavřít</button>
+        </div>
+
+        <div style="margin-top:10px; color:var(--muted); font-size:11px;">
+          Tip: Geolokace funguje na <b>https</b> nebo <b>localhost</b>.
+        </div>
       </div>
-      <div class="row">
-        <button id="btnCenter">Centrovat na mě</button>
-        <button id="btnReset">Reset prototypu</button>
+
+      <div class="lb" id="lbBox">
+        <header>
+          <div class="title">
+            Leaderboard
+            <small>Top běhy (lokálně + Supabase)</small>
+          </div>
+          <div class="spacer"></div>
+          <button class="btn secondary" id="btnLbClose">Zavřít</button>
+        </header>
+        <div class="content">
+          <div class="muted" style="font-size:11px; margin-bottom:8px;">
+            Skóre = body. Uložený čas = zbylé sekundy ze správných odpovědí.
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Nick</th><th>Skóre</th><th>Čas</th><th>Datum</th>
+              </tr>
+            </thead>
+            <tbody id="lbBody">
+              <tr><td colspan="5" class="lb-empty">Načítám…</td></tr>
+            </tbody>
+          </table>
+
+          <div style="display:flex; gap:10px; margin-top:10px;">
+            <input id="nick" placeholder="Tvoje přezdívka" style="flex:1; padding:10px 12px; border-radius:12px; border:1px solid rgba(148,163,184,.22); background:rgba(2,6,23,.35); color:var(--text); outline:none;">
+            <button class="btn" id="btnSaveRun">Uložit běh</button>
+          </div>
+          <div class="muted" style="font-size:11px; margin-top:8px;">
+            Pozn.: Uložení do Supabase vyžaduje správně nastavené klíče (viz JS).
+          </div>
+        </div>
       </div>
-      <div class="muted">
-        Tip: Geolokace funguje na <span class="kbd">https</span> nebo <span class="kbd">localhost</span>.
-      </div>
-    </footer>
+
+    </main>
   </div>
 
-
-  <!-- Leaderboard drawer -->
-  <aside id="drawer" class="drawer" aria-hidden="true">
-    <header>
-      <div class="left">
-        <h1 style="margin:0;font-size:14px;">Žebříček 🌐</h1>
-        <span class="badge">Multiplayer</span>
-      </div>
-      <button id="btnCloseDrawer">Zavřít</button>
-    </header>
-    <div class="body">
-      <p class="muted" style="margin:0 0 10px;">
-        Multiplayer žebříček přes Supabase. Po nastavení URL a klíče se výsledky sdílejí mezi všemi hráči.
-      </p>
-      <table>
-        <thead><tr><th>#</th><th>Přezdívka</th><th>Body</th><th>Ušetřený čas</th><th>Datum</th></tr></thead>
-        <tbody id="lbBody"></tbody>
-      </table>
-    </div>
-    <footer style="padding:14px; border-top:1px solid #1f2937; display:flex; gap:10px; justify-content:space-between;">
-      <button id="btnSaveRun">Uložit běh</button>
-      <button id="btnClearLb">Smazat lokální</button>
-    </footer>
-  </aside>
-
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Leaflet -->
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <script>
-    // ===== 1) KONFIGURACE BODŮ =====
+    // ===== 0) DATA =====
+    // Pozn.: Uprav souřadnice/otázky podle sebe. Body musí mít unique id.
     const TARGETS = [
-      {
-        id: "za-domovem-558",
-        name: "Za Domovem 558",
-        lat: 50.7394476,
-        lng: 15.0092092,
-        points: 100,
-        question: {
-          text: "Jak se jmenuje ulice, na které stojí dům č.p. 558?",
-          options: { a: "Za Domovem", b: "Na Kopci", c: "Polní", d: "Ke Hřišti" },
-          correct: "a"
-        }
-      },
-      {
-        id: "hasicska-zbrojnice",
-        name: "Hasičská zbrojnice",
-        lat: 50.7399112,
-        lng: 15.0185144,
-        points: 300,
-        question: {
-          text: "V jakém roce byl založen místní sbor dobrovolných hasičů?",
-          options: { a: "1899", b: "1900", c: "1901", d: "1902" },
-          correct: "c"
-        }
-      },
-      {
-        id: "spaleniste",
-        name: "Spáleniště",
-        lat: 50.7402846,
-        lng: 15.0169694,
-        points: 500,
-        question: {
-          text: "V jakém roce vyhořela místní restaurace „Zum Walhalla"?",
-          options: { a: "1918", b: "1942", c: "1945", d: "1968" },
-          correct: "b"
-        }
-      }
+      { id:"t1", name:"Bod 1", points: 10, lat: 50.741000, lng: 15.049000,
+        question:{ text:"Která barva je na semaforu 'Stůj'?", options:{a:"Zelená",b:"Červená",c:"Modrá",d:"Žlutá"}, correct:"b"} },
+      { id:"t2", name:"Bod 2", points: 15, lat: 50.742000, lng: 15.047500,
+        question:{ text:"Kolik je 2+2?", options:{a:"3",b:"5",c:"4",d:"22"}, correct:"c"} },
+      { id:"t3", name:"Bod 3", points: 20, lat: 50.740500, lng: 15.047000,
+        question:{ text:"Která planeta je nejblíže Slunci?", options:{a:"Mars",b:"Merkur",c:"Venuše",d:"Jupiter"}, correct:"b"} }
     ];
 
-    // ===== 2) SUPABASE =====
-    // Vyplň ze svého projektu: https://app.supabase.com → Settings → API
-    const SUPABASE_URL  = "https://TVUJ-PROJEKT.supabase.co";
-    const SUPABASE_ANON = "TVUJ-ANON-KEY";
-    // SQL pro tabulku (spusť jednou v Supabase SQL editoru):
-    // CREATE TABLE leaderboard (
-    //   id bigint generated always as identity primary key,
-    //   nickname text not null,
-    //   score integer not null default 0,
-    //   saved_seconds integer not null default 0,
-    //   created_at timestamptz default now()
-    // );
-    // ALTER TABLE leaderboard ENABLE ROW LEVEL SECURITY;
-    // CREATE POLICY "read"   ON leaderboard FOR SELECT USING (true);
-    // CREATE POLICY "insert" ON leaderboard FOR INSERT WITH CHECK (true);
+    // ===== 1) HELPERS =====
+    const clamp = (v,min,max)=>Math.max(min, Math.min(max, v));
+    const fmt = (s)=> {
+      const m = Math.floor(s/60);
+      const r = s%60;
+      return String(m).padStart(2,"0")+":"+String(r).padStart(2,"0");
+    };
+    function dist(lat1, lon1, lat2, lon2){
+      // haversine (m)
+      const R=6371000, toRad=x=>x*Math.PI/180;
+      const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+      const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      return 2*R*Math.asin(Math.sqrt(a));
+    }
+    function calcR(ac) { return !ac||!isFinite(ac)?25:clamp(Math.round(ac*1.2),18,50); }
 
-    let sb = null;
-    try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON); } catch(e) {}
-    const sbReady = SUPABASE_URL !== "https://TVUJ-PROJEKT.supabase.co";
-
-    // ===== 3) STAV =====
-    const LS_KEY = "hanychov_hunt_v3";
-    const LS_LB  = "hanychov_hunt_lb_v1";
-
-    const state = loadState() ?? {
-      nickname: "",
+    // ===== 2) STATE =====
+    const LS_STATE = "hh_state_v1";
+    const LS_LB    = "hh_lb_v1";
+    let state = {
       score: 0,
       savedSeconds: 0,
-      closed:   Object.fromEntries(TARGETS.map(t => [t.id, false])),
-      answered: Object.fromEntries(TARGETS.map(t => [t.id, false])),
+      closed: {},    // id -> bool (už vyřešeno)
+      answered: {}   // id -> bool (správně?)
     };
+    let runSaved = false;
 
-    // ===== 4) DOM =====
-    const elStatus       = document.getElementById("status");
-    const elScore        = document.getElementById("score");
-    const elSaved        = document.getElementById("saved");
-    const elAcc          = document.getElementById("acc");
-    const elNickPill     = document.getElementById("nickPill");
+    function loadState(){
+      try{
+        const s = JSON.parse(localStorage.getItem(LS_STATE));
+        if (s) state = s;
+      } catch(e){}
+    }
+    function saveState(){
+      localStorage.setItem(LS_STATE, JSON.stringify(state));
+      updateHeader();
+      updateMarkers();
+    }
+    function resetAll(){
+      if(!confirm("Opravdu resetovat postup?")) return;
+      state = { score:0, savedSeconds:0, closed:{}, answered:{} };
+      TARGETS.forEach(t=>{ state.closed[t.id]=false; state.answered[t.id]=false; });
+      if (questionOpen) closeModal();
+      runSaved = false;
+      document.getElementById("btnSaveRun").textContent = "Uložit běh";
+      document.getElementById("btnSaveRun").disabled = false;
+      saveState();
+      setStatus("Reset hotov.");
+    }
+
+    // init defaults
+    TARGETS.forEach(t=>{ state.closed[t.id]=false; state.answered[t.id]=false; });
+
+    // ===== 3) UI refs =====
+    const elScore = document.getElementById("score");
+    const elSaved = document.getElementById("saved");
+    const elStatus = document.getElementById("statusMsg");
+    const elAcc = document.getElementById("accVal");
+    const btnCenter = document.getElementById("btnCenter");
+    const btnReset = document.getElementById("btnReset");
+    const btnLb = document.getElementById("btnLb");
+
+    const questionPanel = document.getElementById("questionPanel");
     const pointNameBadge = document.getElementById("pointNameBadge");
-    const pointsBadge    = document.getElementById("pointsBadge");
-    const questionText   = document.getElementById("questionText");
+    const pointsBadge = document.getElementById("pointsBadge");
+    const questionText = document.getElementById("questionText");
     const optA = document.getElementById("optA");
     const optB = document.getElementById("optB");
     const optC = document.getElementById("optC");
     const optD = document.getElementById("optD");
-    const resultBox      = document.getElementById("resultBox");
-    const btnSubmit      = document.getElementById("btnSubmit");
-    const btnClose       = document.getElementById("btnClose");
-    const elTimer        = document.getElementById("timer");
-    const drawer         = document.getElementById("drawer");
-    const lbBody         = document.getElementById("lbBody");
+    const elTimer = document.getElementById("timer");
+    const resultBox = document.getElementById("resultBox");
+    const btnSubmit = document.getElementById("btnSubmit");
+    const btnClose = document.getElementById("btnClose");
 
-    // ===== 5) MAPA =====
-    const centerLat = TARGETS.reduce((s,t) => s+t.lat, 0) / TARGETS.length;
-    const centerLng = TARGETS.reduce((s,t) => s+t.lng, 0) / TARGETS.length;
-    const map = L.map("map").setView([centerLat, centerLng], 15);
+    // leaderboard
+    const lbBox = document.getElementById("lbBox");
+    const lbBody = document.getElementById("lbBody");
+    const btnLbClose = document.getElementById("btnLbClose");
+    const nickInput = document.getElementById("nick");
+    const btnSaveRun = document.getElementById("btnSaveRun");
 
-    L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
-      maxZoom: 17,
-      attribution: "Map data © OpenStreetMap contributors | © OpenTopoMap"
+    function updateHeader(){
+      elScore.textContent = state.score;
+      elSaved.textContent = state.savedSeconds;
+      const pillScore = document.getElementById("pillScore");
+      const pillSaved = document.getElementById("pillSaved");
+      pillScore.classList.toggle("good", state.score>0);
+      pillSaved.classList.toggle("good", state.savedSeconds>0);
+    }
+
+    // ===== 4) MAP =====
+    let map = L.map("map", { zoomControl:true }).setView([TARGETS[0].lat, TARGETS[0].lng], 16);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
-    const markerMap = {}, zoneMap = {};
-    TARGETS.forEach(t => {
-      markerMap[t.id] = L.marker([t.lat, t.lng]).addTo(map)
-        .bindPopup(`<b>${t.name}</b><br/>${t.points} bodů`);
-      zoneMap[t.id] = L.circle([t.lat, t.lng],
-        { radius: 25, weight: 2, color: "#2563eb", fillOpacity: .08 }).addTo(map);
+    const zoneMap = {};
+    const markerMap = {};
+
+    TARGETS.forEach(t=>{
+      const m = L.circleMarker([t.lat,t.lng],{
+        radius:10, weight:2, color:"#38bdf8", fillColor:"#38bdf8", fillOpacity:.25
+      }).addTo(map).bindPopup(`<b>${t.name}</b><br>${t.points} bodů`);
+      markerMap[t.id]=m;
+
+      const z = L.circle([t.lat,t.lng],{
+        radius: 25, weight:1, color:"#94a3b8", fillColor:"#94a3b8", fillOpacity:.08
+      }).addTo(map);
+      zoneMap[t.id]=z;
     });
 
-    let userMarker = null, accCircle = null, lastFix = null;
+    let userMarker = null;
+    let accCircle  = null;
+    let lastFix = null;
 
-    // ===== 6) HELPERY =====
-    function loadState() { try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch { return null; } }
-    function saveState() { localStorage.setItem(LS_KEY, JSON.stringify(state)); renderStats(); renderMarkerState(); }
-    function fmt(s) { return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
-    function clamp(n,a,b) { return Math.max(a, Math.min(b, n)); }
-    function dist(la1,lo1,la2,lo2) {
-      const R=6371000, r=d=>d*Math.PI/180, dLa=r(la2-la1), dLo=r(lo2-lo1);
-      const a=Math.sin(dLa/2)**2+Math.cos(r(la1))*Math.cos(r(la2))*Math.sin(dLo/2)**2;
-      return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-    }
-    function calcR(ac) { return !ac||!isFinite(ac)?25:clamp(Math.round(ac*1.2),10,50); }
-    function esc(s) { return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c])); }
-    function fmtDate(ts) {
-      if (!ts) return "—";
-      const d = new Date(ts);
-      return `${d.getDate()}.${d.getMonth()+1}. ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-    }
-
-    // ===== 7) NICKNAME (prompt — jednoduché a spolehlivé) =====
-    function ensureNick() {
-      if (state.nickname?.trim().length >= 2) return;
-      const val = prompt("Zadej přezdívku (min. 2 znaky):", state.nickname || "") ?? "";
-      state.nickname = val.trim().length >= 2 ? val.trim() : "Hráč";
-      saveState();
-    }
-    elNickPill.addEventListener("click", () => {
-      const val = prompt("Změň přezdívku:", state.nickname || "") ?? "";
-      if (val.trim().length >= 2) { state.nickname = val.trim(); saveState(); }
-    });
-
-    // ===== 8) RENDER =====
-    function renderStats() {
-      elScore.textContent    = state.score;
-      elSaved.textContent    = fmt(state.savedSeconds);
-      elNickPill.textContent = `Přezdívka: ${state.nickname || "—"}`;
-    }
-    function renderMarkerState() {
-      TARGETS.forEach(t => {
-        const c = !!state.closed[t.id];
-        markerMap[t.id].setOpacity(c ? 0.45 : 1);
-        markerMap[t.id].bindPopup(c
-          ? `<b>${t.name}</b><br/>Uzavřeno — ${state.answered[t.id] ? t.points : 0} bodů`
-          : `<b>${t.name}</b><br/>${t.points} bodů`);
+    function updateMarkers(){
+      TARGETS.forEach(t=>{
+        const done = !!state.closed[t.id];
+        const ok = !!state.answered[t.id];
+        const m = markerMap[t.id];
+        if(done){
+          m.setStyle({
+            color: ok ? "#22c55e" : "#ef4444",
+            fillColor: ok ? "#22c55e" : "#ef4444",
+            fillOpacity:.35
+          });
+        } else {
+          m.setStyle({ color:"#38bdf8", fillColor:"#38bdf8", fillOpacity:.25 });
+        }
       });
     }
-    document.querySelectorAll('input[name="ans"]').forEach(r =>
-      r.addEventListener("change", () => {
-        document.querySelectorAll(".opt").forEach(l => l.classList.remove("selected"));
-        r.closest(".opt")?.classList.add("selected");
-      })
-    );
 
-    // ===== 9) PANEL OTÁZKY =====
-    const questionPanel = document.getElementById("questionPanel");
+    function invalidateMap(){
+      // Leaflet potřebuje při otevření panelu přepočítat velikost
+      setTimeout(()=>map.invalidateSize(), 120);
+    }
+
+    btnCenter.addEventListener("click", ()=>{
+      if(lastFix){
+        map.setView([lastFix.coords.latitude, lastFix.coords.longitude], 17, {animate:true});
+      } else {
+        map.fitBounds(L.latLngBounds(TARGETS.map(t=>[t.lat,t.lng])).pad(0.2));
+      }
+    });
+
+    btnReset.addEventListener("click", resetAll);
+
+    // ===== 5) QUESTION FLOW =====
     let timerInt = null, remaining = 180, questionOpen = false, activeTarget = null;
+    let questionCooldownUntil = 0; // zabrání okamžitému znovuotevření otázky po zavření (ms timestamp)
+    const QUESTION_COOLDOWN_MS = 6000;
 
-    function invalidateMap() { setTimeout(() => map.invalidateSize(), 320); }
+    // highlight selected option
+    document.querySelectorAll('input[name="ans"]').forEach(r=>{
+      r.addEventListener("change", ()=>{
+        document.querySelectorAll(".opt").forEach(l=>l.classList.remove("selected"));
+        r.closest(".opt").classList.add("selected");
+      });
+    });
 
     function openQuestion(target) {
       if (questionOpen || state.closed[target.id]) return;
@@ -374,7 +518,6 @@
 
       questionPanel.classList.add("open");
       invalidateMap();
-      setTimeout(fixMapHeight, 320);
 
       timerInt = setInterval(() => {
         remaining--;
@@ -385,13 +528,13 @@
     }
 
     function closeModal() {
+      questionCooldownUntil = Date.now() + QUESTION_COOLDOWN_MS;
       questionPanel.classList.remove("open");
       questionOpen = false;
       activeTarget = null;
       elTimer.classList.remove("urgent");
       if (timerInt) { clearInterval(timerInt); timerInt = null; }
       invalidateMap();
-      setTimeout(fixMapHeight, 320);
     }
 
     function closeAsTimeout() {
@@ -416,10 +559,10 @@
       state.answered[t.id] = ok;
       state.closed[t.id]   = true;
       resultBox.style.display = "block";
-      resultBox.className = `result ${ok ? "ok" : "bad"}`;
-      resultBox.textContent =
-        (ok ? `Správně! +${t.points} bodů. ` : "Špatně. +0 bodů. ") +
-        `Správná odpověď: ${t.question.correct.toUpperCase()}) ${t.question.options[t.question.correct]}.`;
+      resultBox.className = `result ${ok ? "good":"bad"}`;
+      resultBox.textContent = ok
+        ? `Správně! +${t.points} bodů a +${remaining}s uloženého času.`
+        : `Špatně. +0 bodů. Správná odpověď: ${t.question.correct.toUpperCase()}) ${t.question.options[t.question.correct]}.`;
       btnSubmit.disabled = true;
       setTimeout(() => { closeModal(); saveState(); }, 2000);
     });
@@ -432,10 +575,9 @@
     let gpsWatchdogTimer = null, gpsWatchId = null, gpsFirstFix = false;
 
     function resetGpsWatchdog() {
-      if (!gpsFirstFix) return;
       if (gpsWatchdogTimer) clearTimeout(gpsWatchdogTimer);
       gpsWatchdogTimer = setTimeout(() => {
-        setStatus("⚠️ GPS nereaguje — klepni sem pro obnovení");
+        setStatus(gpsFirstFix ? "⚠️ GPS nereaguje — klepni sem pro obnovení" : "⏳ Čekám na GPS… trvá to déle — klepni sem pro obnovení");
         elStatus.style.cursor = "pointer";
         elStatus.style.borderColor = "#f87171";
         elStatus.onclick = restartGps;
@@ -448,6 +590,9 @@
       elStatus.style.cursor = ""; elStatus.style.borderColor = ""; elStatus.onclick = null;
       gpsFirstFix = false;
       setStatus("Obnovuji GPS…");
+      elStatus.style.cursor = "pointer";
+      elStatus.onclick = restartGps;
+      resetGpsWatchdog();
       setTimeout(startWatching, 500);
     }
 
@@ -470,6 +615,7 @@
         TARGETS.forEach(t => zoneMap[t.id].setRadius(r));
 
         if (questionOpen) return;
+        if (Date.now() < questionCooldownUntil) return;
         if (TARGETS.every(t => state.closed[t.id])) { setStatus("Všechny body splněny! 🎉"); return; }
 
         let nearest = null, nearestDist = Infinity;
@@ -482,21 +628,47 @@
         if (nearest) setStatus(`Nejblíž: ${nearest.name} — ${Math.round(nearestDist)} m (tolerance ~${r} m)`);
 
       }, err => {
-        if (err.code === 3 && gpsFirstFix) return; // tiché timeout po prvním fixu
-        if (err.code === 1) setStatus("⚠️ Povolení GPS zamítnuto — povol polohu v nastavení.");
-        else if (err.code === 2) setStatus("⚠️ GPS signál nedostupný — zkus jít ven.");
-        else if (!gpsFirstFix) setStatus("⏳ GPS trvá déle… zkus jít ven.");
+        // Pozn.: u watchPosition se může občas vracet TIMEOUT (code 3). Po prvním fixu ho ignorujeme,
+        // protože GPS může dál fungovat a jen vypadne jeden update.
+        if (err.code === 3 && gpsFirstFix) return;
+        if (err.code === 1) setStatus("⚠️ Povolení GPS zamítnuto — povol polohu v nastavení prohlížeče.");
+        else if (err.code === 2) setStatus("⚠️ GPS signál nedostupný — zkus jít ven nebo zapnout/vypnout GPS.");
+        else setStatus(gpsFirstFix ? "⚠️ GPS timeout — klepni pro restart" : "⏳ Čekám na GPS… trvá to déle — klepni pro restart");
+        elStatus.style.cursor = "pointer";
+        elStatus.onclick = restartGps;
+        resetGpsWatchdog();
       },
-      { enableHighAccuracy: true, maximumAge: 3000, timeout: Infinity });
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 });
     }
 
     function startGeo() {
       if (!("geolocation" in navigator)) { setStatus("Geolokace není podporována."); return; }
       setStatus("Hledám polohu…");
+      // když to bude trvat dlouho, watchdog nabídne restart. Uživatel může restart vyvolat i hned klikem na status.
+      elStatus.style.cursor = "pointer";
+      elStatus.onclick = restartGps;
+      resetGpsWatchdog();
       startWatching();
     }
 
     // ===== 11) LEADERBOARD =====
+    // Supabase (volitelné) — když nechceš, můžeš to celé ignorovat a ukládat jen lokálně.
+    // Pokud chceš Supabase, vyplň:
+    const SUPABASE_URL = "";       // např. https://xyzcompany.supabase.co
+    const SUPABASE_ANON_KEY = "";  // anon key
+    let sb = null, sbReady = false;
+
+    async function initSupabase(){
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+      try{
+        const mod = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
+        sb = mod.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        sbReady = true;
+      }catch(e){
+        console.warn("Supabase init failed", e);
+      }
+    }
+
     function loadLbLocal() { try { return JSON.parse(localStorage.getItem(LS_LB))??[]; } catch { return []; } }
     function saveLbLocal(a) { localStorage.setItem(LS_LB, JSON.stringify(a)); }
 
@@ -510,104 +682,100 @@
             .select("nickname,score,saved_seconds,created_at")
             .order("score", { ascending: false })
             .order("saved_seconds", { ascending: false })
-            .limit(50);
-          if (error) throw error;
-          entries = data.map(x => ({ nickname: x.nickname, score: x.score, savedSeconds: x.saved_seconds, at: x.created_at }));
-        } catch { entries = loadLbLocal(); }
-      } else {
-        lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty" style="color:#fbbf24">⚙️ Nastav Supabase v kódu pro multiplayer.<br/><span style="color:#6b7280;font-size:11px">Zobrazuji lokální záznamy.</span></td></tr>`;
-        entries = loadLbLocal();
-        if (!entries.length) return;
-        entries.sort((a,b) => (b.score-a.score)||(b.savedSeconds-a.savedSeconds));
-        lbBody.innerHTML += entries.map((x,i) => `<tr><td>${i+1}</td><td>${esc(x.nickname)}</td><td><b>${x.score}</b></td><td>${fmt(x.savedSeconds)}</td><td style="color:#6b7280">${fmtDate(x.at)}</td></tr>`).join("");
+            .limit(20);
+
+          if (!error && data) entries = data.map(x => ({
+            nickname: x.nickname,
+            score: x.score,
+            saved_seconds: x.saved_seconds,
+            created_at: x.created_at
+          }));
+        } catch (e) {
+          console.warn("LB fetch failed", e);
+        }
+      }
+
+      // merge with local as fallback
+      const local = loadLbLocal();
+      const merged = [...entries, ...local]
+        .sort((a,b)=> b.score - a.score || b.saved_seconds - a.saved_seconds)
+        .slice(0,20);
+
+      if (!merged.length) {
+        lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Zatím žádné uložené běhy.</td></tr>`;
         return;
       }
 
-      if (!entries.length) {
-        lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Žebříček je zatím prázdný.</td></tr>`;
-        return;
-      }
-      lbBody.innerHTML = entries.map((x,i) => `
-        <tr${i===0?' style="color:#fbbf24"':''}>
-          <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
-          <td>${esc(x.nickname)}</td><td><b>${x.score}</b></td>
-          <td>${fmt(x.savedSeconds)}</td>
-          <td style="color:#6b7280">${fmtDate(x.at)}</td>
-        </tr>`).join("");
+      lbBody.innerHTML = merged.map((x,i)=>{
+        const d = x.created_at ? new Date(x.created_at) : null;
+        const dateStr = d ? d.toLocaleDateString("cs-CZ") : "—";
+        return `<tr>
+          <td>${i+1}</td>
+          <td>${(x.nickname||"—").slice(0,16)}</td>
+          <td><b>${x.score}</b></td>
+          <td>${x.saved_seconds}s</td>
+          <td>${dateStr}</td>
+        </tr>`;
+      }).join("");
     }
 
-    let runSaved = false;
-    document.getElementById("btnLeaderboard").addEventListener("click", () => {
-      drawer.classList.add("open"); drawer.setAttribute("aria-hidden","false"); renderLb();
-    });
-    document.getElementById("btnCloseDrawer").addEventListener("click", () => {
-      drawer.classList.remove("open"); drawer.setAttribute("aria-hidden","true");
-    });
-    document.getElementById("btnSaveRun").addEventListener("click", async () => {
+    function openLb(){
+      lbBox.style.display = "block";
+      renderLb();
+    }
+    function closeLb(){
+      lbBox.style.display = "none";
+    }
+    btnLb.addEventListener("click", ()=> lbBox.style.display==="block" ? closeLb() : openLb() );
+    btnLbClose.addEventListener("click", closeLb);
+
+    btnSaveRun.addEventListener("click", async ()=>{
       if (runSaved) return;
-      ensureNick();
-      if (!state.nickname || state.nickname.trim().length < 2) return;
+      const nick = (nickInput.value || "").trim() || "Anonym";
+      const entry = {
+        nickname: nick,
+        score: state.score,
+        saved_seconds: state.savedSeconds,
+        created_at: new Date().toISOString()
+      };
+
+      // local
       const local = loadLbLocal();
-      local.push({ nickname: state.nickname, score: state.score, savedSeconds: state.savedSeconds, at: Date.now() });
+      local.push(entry);
       saveLbLocal(local);
+
+      // supabase (optional)
       if (sb && sbReady) {
         try {
-          await sb.from("leaderboard").insert({ nickname: state.nickname, score: state.score, saved_seconds: state.savedSeconds });
-          document.getElementById("btnSaveRun").textContent = "✓ Uloženo online";
-        } catch { document.getElementById("btnSaveRun").textContent = "✓ Uloženo lokálně"; }
-      } else {
-        document.getElementById("btnSaveRun").textContent = "✓ Uloženo lokálně";
+          await sb.from("leaderboard").insert({
+            nickname: entry.nickname,
+            score: entry.score,
+            saved_seconds: entry.saved_seconds
+          });
+        } catch(e){
+          console.warn("Supabase insert failed", e);
+        }
       }
-      renderLb(); runSaved = true;
-      document.getElementById("btnSaveRun").disabled = true;
-    });
-    document.getElementById("btnClearLb").addEventListener("click", () => {
-      if (confirm("Smazat lokální záznamy?")) { saveLbLocal([]); renderLb(); }
+
+      runSaved = true;
+      btnSaveRun.textContent = "Uloženo ✅";
+      btnSaveRun.disabled = true;
+      renderLb();
     });
 
-    // ===== 12) OVLÁDÁNÍ =====
-    document.getElementById("btnCenter").addEventListener("click", () => {
-      if (lastFix) map.setView([lastFix.coords.latitude, lastFix.coords.longitude], 17);
-      else map.setView([centerLat, centerLng], 15);
-    });
-    document.getElementById("btnReset").addEventListener("click", () => {
-      if (!confirm("Resetovat prototyp?")) return;
-      state.score = 0; state.savedSeconds = 0;
-      TARGETS.forEach(t => { state.closed[t.id]=false; state.answered[t.id]=false; });
-      if (questionOpen) closeModal();
-      runSaved = false;
-      document.getElementById("btnSaveRun").textContent = "Uložit běh";
-      document.getElementById("btnSaveRun").disabled = false;
-      saveState(); alert("Reset hotov.");
-    });
-
-    // ===== 13) PWA =====
-    if ("serviceWorker" in navigator)
-      window.addEventListener("load", async () => {
-        try { await navigator.serviceWorker.register("./sw.js"); } catch {}
-      });
-
-    // ===== INIT =====
-    // iOS Safari fix: explicitně nastavíme výšku mapy
-    function fixMapHeight() {
-      const mapEl = document.getElementById("map");
-      const header = document.querySelector("header");
-      const footer = document.querySelector("footer");
-      const panel  = document.getElementById("questionPanel");
-      const avail  = window.innerHeight
-        - header.offsetHeight
-        - footer.offsetHeight
-        - (panel.classList.contains("open") ? panel.offsetHeight : 0);
-      mapEl.style.height = Math.max(avail, 100) + "px";
-      map.invalidateSize();
-    }
-    window.addEventListener("resize", fixMapHeight);
-    fixMapHeight();
-    ensureNick();
-    renderStats();
-    renderMarkerState();
+    // ===== 12) STARTUP =====
+    loadState();
+    updateHeader();
+    updateMarkers();
+    initSupabase();
     startGeo();
-    saveState();
+
+    // ===== 13) SERVICE WORKER =====
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(()=>{});
+      });
+    }
   </script>
 </body>
 </html>
