@@ -615,44 +615,42 @@
     // ===== 9) GEOLOKACE =====
     function setStatus(t) { elStatus.textContent = t; }
 
-    // Hlídač zamrzlé GPS — pokud nepřijde žádný fix déle než 20s, upozorní hráče
     let gpsWatchdogTimer = null;
     let gpsWatchId = null;
+    let gpsFirstFix = false; // watchdog spustíme až po prvním úspěšném fixu
 
     function resetGpsWatchdog() {
+      if (!gpsFirstFix) return; // před prvním fixem watchdog neběží
       if (gpsWatchdogTimer) clearTimeout(gpsWatchdogTimer);
       gpsWatchdogTimer = setTimeout(() => {
-        // GPS zamrzla — zobraz varování s tlačítkem pro restart
         setStatus("⚠️ GPS nereaguje — klepni sem pro obnovení");
         elStatus.style.cursor = "pointer";
         elStatus.style.borderColor = "#f87171";
         elStatus.onclick = restartGps;
-      }, 20000); // 20 sekund bez fixu
+      }, 20000);
     }
 
     function restartGps() {
-      // Zruš staré watche
       if (gpsWatchId !== null) navigator.geolocation.clearWatch(gpsWatchId);
       if (gpsWatchdogTimer) clearTimeout(gpsWatchdogTimer);
-
-      // Reset badge stylu
       elStatus.style.cursor = "";
       elStatus.style.borderColor = "";
       elStatus.onclick = null;
+      gpsFirstFix = false;
       setStatus("Obnovuji GPS…");
-
-      // Krátká prodleva, pak znovu spusť
       setTimeout(() => startWatching(), 500);
     }
 
     function startWatching() {
-      resetGpsWatchdog();
-
       gpsWatchId = navigator.geolocation.watchPosition(pos => {
         lastFix = pos;
-        resetGpsWatchdog(); // každý fix prodlouží watchdog
 
-        // Reset badge stylu pokud byl v chybovém stavu
+        // První fix — od teď spouštíme watchdog
+        if (!gpsFirstFix) {
+          gpsFirstFix = true;
+        }
+        resetGpsWatchdog();
+
         elStatus.style.cursor = "";
         elStatus.style.borderColor = "";
         elStatus.onclick = null;
@@ -687,8 +685,8 @@
       }, err => {
         if (err.code === 1) setStatus("⚠️ Povolení GPS zamítnuto — povol polohu v nastavení.");
         else if (err.code === 2) setStatus("⚠️ GPS signál nedostupný — zkus jít ven.");
-        else setStatus("⚠️ GPS timeout — klepni sem pro obnovení");
-        if (err.code !== 1) { // u zamítnutého povolení restart nepomůže
+        else {
+          setStatus("⚠️ GPS timeout — klepni sem pro obnovení");
           elStatus.style.cursor = "pointer";
           elStatus.style.borderColor = "#f87171";
           elStatus.onclick = restartGps;
@@ -700,14 +698,6 @@
     function startGeo() {
       if (!("geolocation" in navigator)) { setStatus("Geolokace není podporována."); return; }
       setStatus("Hledám polohu…");
-
-      // Nejprve rychlá cached poloha — "probudí" GPS čip
-      navigator.geolocation.getCurrentPosition(
-        () => {},
-        () => {},
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
-      );
-
       startWatching();
     }
 
