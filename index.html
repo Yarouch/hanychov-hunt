@@ -22,7 +22,7 @@
     header .left { display:flex; gap:10px; align-items:center; }
     header h1 { font-size: 14px; margin: 0; font-weight: 700; letter-spacing: .2px; }
     header .badge { font-size: 12px; padding: 4px 8px; border: 1px solid #374151; border-radius: 999px; color: #cbd5e1; }
-    #map { height: 100%; width: 100%; }
+    #map { height: 100%; width: 100%; position: relative; z-index: 1; }
 
     footer { padding: 10px 14px; background: #111827; border-top: 1px solid #1f2937; display: grid; gap: 8px; }
     .row { display:flex; gap:10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
@@ -45,8 +45,9 @@
       align-items: center;
       justify-content: center;
       padding: 14px;
-      z-index: 99999; /* <-- důležité */
-    }
+      z-index: 999999;           /* vyšší než Leaflet */
+      transform: translateZ(0);  /* iOS fix (vynutí vrstvu nad mapou) */
+}
     .modal {
       position: relative;   /* ← PŘIDEJ */
       z-index: 100000;      /* ← PŘIDEJ */
@@ -595,4 +596,5 @@
 </body>
 
 </html>
+
 
