@@ -652,7 +652,7 @@
         if (nearest) setStatus(`Nejblíž: ${nearest.name} — ${Math.round(nearestDist)} m (tolerance ~${r} m)`);
 
       }, err => setStatus("GPS chyba: "+err.message),
-         { enableHighAccuracy:true, maximumAge:1000, timeout:15000 });
+         { enableHighAccuracy:true, maximumAge:1000, timeout:30000 });
     }
 
     // ===== 10) LEADERBOARD =====
@@ -742,3 +742,4 @@
   </script>
 </body>
 </html>
+
