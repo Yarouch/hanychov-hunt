@@ -8,6 +8,7 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#111827" />
 
+  <!-- Leaflet -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -15,66 +16,32 @@
     crossorigin=""
   />
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background: #0b1220; color: #e5e7eb; }
+    #app { height: 100%; display: grid; grid-template-rows: auto 1fr auto auto; }
+    header { padding: 12px 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; background: #111827; border-bottom: 1px solid #1f2937; }
+    header .left { display:flex; gap:10px; align-items:center; }
+    header h1 { font-size: 14px; margin: 0; font-weight: 700; letter-spacing: .2px; }
+    header .badge { font-size: 12px; padding: 4px 8px; border: 1px solid #374151; border-radius: 999px; color: #cbd5e1; }
+    #map { width: 100%; min-height: 0; }
 
-    html, body {
-      height: 100%;
-      margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      background: #0b1220;
-      color: #e5e7eb;
-      overscroll-behavior: none;
+    footer { padding: 10px 14px; background: #111827; border-top: 1px solid #1f2937; display: grid; gap: 8px; }
+    .row { display:flex; gap:10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+    .stat { font-size: 13px; color: #cbd5e1; }
+    .stat b { color: #e5e7eb; }
+    button {
+      appearance: none; border: 1px solid #374151; background: #0b1220; color: #e5e7eb;
+      border-radius: 10px; padding: 10px 12px; font-weight: 700; font-size: 13px;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
     }
+    button:active { opacity: .75; }
+    button.primary { background: #1d4ed8; border-color: #2563eb; color: #fff; }
+    button:disabled { opacity: .4; cursor: default; }
+    .muted { color: #9ca3af; font-size: 12px; }
+    .pill { padding: 4px 8px; border-radius: 999px; border: 1px solid #374151; font-size: 12px; color: #cbd5e1; cursor: pointer; }
+    .pill:hover { border-color: #6b7280; }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas; font-size: 12px; padding: 2px 6px; border: 1px solid #374151; border-radius: 8px; color:#cbd5e1; }
 
-    /* ============================================================
-       HLAVNÍ GRID
-       Řádky: header | mapa (1fr) | panel-otázky (0 nebo auto) | footer
-       Mapa dostane vždy zbývající výšku přes 1fr — nikdy se
-       nepřekryje ani neskryje.
-    ============================================================ */
-    #app {
-      height: 100%;
-      display: grid;
-      grid-template-rows: auto 1fr auto auto;
-      /* ŽÁDNÝ transform na #app */
-    }
-
-    /* ===== HEADER ===== */
-    #appHeader {
-      padding: 10px 14px;
-      padding-top: max(10px, env(safe-area-inset-top));
-      display: flex; gap: 10px; align-items: center;
-      justify-content: space-between; flex-wrap: wrap;
-      background: #111827;
-      border-bottom: 1px solid #1f2937;
-    }
-    .left { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    h1.title { font-size: 14px; margin: 0; font-weight: 700; }
-    .badge {
-      font-size: 12px; padding: 3px 8px;
-      border: 1px solid #374151; border-radius: 999px; color: #cbd5e1;
-    }
-    .pill {
-      padding: 3px 8px; border-radius: 999px;
-      border: 1px solid #374151; font-size: 12px; color: #cbd5e1;
-    }
-
-    /* ===== MAPA ===== */
-    #map {
-      width: 100%;
-      min-height: 0; /* grid fix — bez toho 1fr nefunguje správně */
-    }
-    .leaflet-pane,
-    .leaflet-control,
-    .leaflet-top,
-    .leaflet-bottom { z-index: 10 !important; }
-    .leaflet-popup  { z-index: 20 !important; }
-
-    /* ===== PANEL OTÁZKY =====
-       Skrytý:   max-height:0, overflow:hidden  → zabírá 0px v gridu
-       Viditelný: max-height:50vh, overflow-y:auto → vnitřní scroll
-       CSS transition dá plynulý slide-up efekt.
-    ===== */
+    /* Slide-up panel otázky */
     #questionPanel {
       background: #111827;
       border-top: 2px solid #2563eb;
@@ -87,158 +54,42 @@
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
-
     .panel-inner { padding: 14px; display: grid; gap: 10px; }
-
-    .panel-header {
-      display: flex; justify-content: space-between;
-      align-items: center; gap: 8px;
-    }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .panel-title { font-size: 13px; font-weight: 700; color: #93c5fd; }
-
-    .timer {
-      font-weight: 900; font-size: 14px; letter-spacing: .5px;
-      padding: 3px 10px; border-radius: 999px;
-      border: 1px solid #374151; color: #fbbf24;
-    }
-    .timer.urgent { color: #f87171; border-color: rgba(239,68,68,.4); }
-
     .q { font-size: 15px; font-weight: 800; line-height: 1.4; }
-
-    .opts { display: grid; gap: 7px; }
-    .opt {
-      display: flex; gap: 10px; align-items: center;
-      padding: 11px 12px;
-      border: 1px solid #374151; border-radius: 10px;
-      cursor: pointer; font-size: 14px;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .opt input[type="radio"] { flex-shrink: 0; transform: scale(1.2); }
-    .opt:hover, .opt:focus-within { border-color: #6b7280; }
+    .opt { display:flex; gap:10px; align-items:center; padding: 11px 12px; border: 1px solid #374151; border-radius: 10px; cursor: pointer; font-size: 14px; -webkit-tap-highlight-color: transparent; }
+    .opt input { transform: scale(1.2); flex-shrink: 0; }
+    .opt:hover { border-color: #6b7280; }
     .opt.selected { border-color: #2563eb; background: rgba(37,99,235,.08); }
-
-    .result {
-      padding: 10px 12px; border-radius: 10px;
-      border: 1px solid #374151; font-size: 13px; line-height: 1.5;
-    }
+    .timer { font-weight: 900; letter-spacing: .5px; font-size: 14px; padding: 3px 10px; border-radius: 999px; border: 1px solid #374151; color: #fbbf24; }
+    .timer.urgent { color: #f87171; border-color: rgba(239,68,68,.4); }
+    .result { padding: 10px 12px; border-radius: 10px; border: 1px solid #374151; font-size: 13px; line-height: 1.5; }
     .ok  { border-color: rgba(34,197,94,.5);  background: rgba(34,197,94,.06); }
     .bad { border-color: rgba(239,68,68,.5);  background: rgba(239,68,68,.06); }
-
     .panel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-    /* ===== FOOTER ===== */
-    #appFooter {
-      padding: 10px 14px;
-      padding-bottom: max(10px, env(safe-area-inset-bottom));
-      background: #111827;
-      border-top: 1px solid #1f2937;
-      display: grid; gap: 8px;
-    }
-    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
-    .stat { font-size: 13px; color: #cbd5e1; }
-    .stat b { color: #e5e7eb; }
-    .muted { color: #9ca3af; font-size: 11px; }
-    .kbd {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas;
-      font-size: 11px; padding: 1px 5px;
-      border: 1px solid #374151; border-radius: 6px; color: #cbd5e1;
-    }
-
-    /* ===== TLAČÍTKA ===== */
-    button {
-      appearance: none;
-      border: 1px solid #374151; background: #0b1220; color: #e5e7eb;
-      border-radius: 10px; padding: 9px 13px;
-      font-weight: 700; font-size: 13px;
-      min-height: 40px; cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-    button:active { opacity: .75; }
-    button.primary {
-      background: #1d4ed8; border-color: #2563eb; color: #fff;
-    }
-    button.primary:active { background: #1e40af; }
-    button:disabled { opacity: .4; cursor: default; }
-
-    /* Pill přezdívky — klikatelný pro změnu */
-    #nickPill { cursor: pointer; transition: border-color .15s; }
-    #nickPill:hover { border-color: #6b7280; }
-
-    /* ===== NICKNAME OVERLAY =====
-       Vlastní formulář místo prompt() — prompt() je v PWA/standalone
-       na iOS Safari nespolehlivý (může být tiše ignorován).
-    ===== */
-    #nickOverlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,.75);
-      display: flex; align-items: center; justify-content: center;
-      padding: 24px;
-      z-index: 1000;
-    }
-    #nickOverlay.hidden { display: none; }
-    #nickCard {
-      width: min(360px, 100%);
-      background: #111827;
-      border: 1px solid #374151;
-      border-radius: 16px;
-      padding: 24px;
-      display: grid; gap: 16px;
-    }
-    #nickCard h2 { margin: 0; font-size: 18px; font-weight: 800; }
-    #nickCard p  { margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5; }
-    #nickInput {
-      width: 100%;
-      background: #0b1220; border: 1px solid #374151;
-      color: #e5e7eb; border-radius: 10px;
-      padding: 12px 14px; font-size: 16px; /* 16px zabrání zoom na iOS */
-      outline: none; box-sizing: border-box;
-    }
-    #nickInput:focus { border-color: #2563eb; }
-    #nickError { color: #f87171; font-size: 12px; min-height: 16px; }
-
-    /* Žebříček — prázdný stav */
-    .lb-empty {
-      padding: 32px 0; text-align: center;
-      color: #6b7280; font-size: 13px;
-    }
-
-    /* ===== DRAWER — MIMO #app → position:fixed = viewport ===== */
+    /* Leaderboard drawer */
     .drawer {
-      position: fixed; right: 0; top: 0;
-      height: 100%; width: min(400px, 92vw);
+      position: fixed; right: 0; top: 0; height: 100%; width: min(420px, 92vw);
       background: #0b1220; border-left: 1px solid #1f2937;
-      transform: translateX(100%); transition: transform .25s ease;
+      transform: translateX(100%); transition: transform .2s ease;
       display: grid; grid-template-rows: auto 1fr auto;
-      z-index: 500;
-      will-change: transform;
+      z-index: 200;
     }
     .drawer.open { transform: translateX(0); }
-    .drawer-header {
-      padding: 12px 14px;
-      padding-top: max(12px, env(safe-area-inset-top));
-      background: #111827; border-bottom: 1px solid #1f2937;
-      display: flex; gap: 10px; align-items: center; justify-content: space-between;
-    }
-    .drawer-body { padding: 14px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-    .drawer-footer {
-      padding: 12px 14px;
-      padding-bottom: max(12px, env(safe-area-inset-bottom));
-      border-top: 1px solid #1f2937;
-      display: flex; gap: 10px; justify-content: space-between;
-    }
+    .drawer .body { padding: 14px; overflow: auto; -webkit-overflow-scrolling: touch; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 9px 8px; border-bottom: 1px solid #1f2937; font-size: 13px; text-align: left; }
-    th { color: #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid #1f2937; font-size: 13px; text-align: left; }
+    th { color: #cbd5e1; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
+    .lb-empty { padding: 32px 0; text-align: center; color: #6b7280; font-size: 13px; }
   </style>
 </head>
 <body>
-
-  <!-- ===== HLAVNÍ LAYOUT ===== -->
   <div id="app">
-
-    <header id="appHeader">
+    <header>
       <div class="left">
-        <h1 class="title">Hanychov Hunt – Prototype</h1>
+        <h1>Hanychov Hunt</h1>
         <span id="status" class="badge">Čekám na GPS…</span>
       </div>
       <div class="left">
@@ -247,41 +98,34 @@
       </div>
     </header>
 
-    <!-- Mapa — vždy v gridu na svém místě, dostane 1fr -->
     <div id="map"></div>
 
-    <!-- Panel otázky — vysunou se pod mapu, mapa zůstane nedotčená -->
-    <section id="questionPanel" aria-live="polite" aria-label="Úkol">
+    <!-- Panel otázky — 3. řádek gridu, vysune se pod mapu -->
+    <section id="questionPanel" aria-live="polite">
       <div class="panel-inner">
-
         <div class="panel-header">
-          <div class="left">
-            <span class="panel-title" id="pointNameLabel">—</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span class="panel-title" id="pointNameBadge">—</span>
             <span class="badge" id="pointsBadge">—</span>
           </div>
           <span class="timer" id="timer">03:00</span>
         </div>
-
         <div class="q" id="questionText">—</div>
-
-        <div class="opts">
-          <label class="opt"><input type="radio" name="ans" value="a"><span><b>A)</b> <span id="optA"></span></span></label>
-          <label class="opt"><input type="radio" name="ans" value="b"><span><b>B)</b> <span id="optB"></span></span></label>
-          <label class="opt"><input type="radio" name="ans" value="c"><span><b>C)</b> <span id="optC"></span></span></label>
-          <label class="opt"><input type="radio" name="ans" value="d"><span><b>D)</b> <span id="optD"></span></span></label>
+        <div style="display:grid;gap:7px;">
+          <label class="opt"><input type="radio" name="ans" value="a"> <div><b>A)</b> <span id="optA"></span></div></label>
+          <label class="opt"><input type="radio" name="ans" value="b"> <div><b>B)</b> <span id="optB"></span></div></label>
+          <label class="opt"><input type="radio" name="ans" value="c"> <div><b>C)</b> <span id="optC"></span></div></label>
+          <label class="opt"><input type="radio" name="ans" value="d"> <div><b>D)</b> <span id="optD"></span></div></label>
         </div>
-
         <div id="resultBox" class="result" style="display:none;"></div>
-
         <div class="panel-actions">
           <button class="primary" id="btnSubmit">Odeslat odpověď</button>
-          <button id="btnClosePanel">Zavřít</button>
+          <button id="btnClose">Zavřít</button>
         </div>
-
       </div>
     </section>
 
-    <footer id="appFooter">
+    <footer>
       <div class="row">
         <div class="stat">Body: <b id="score">0</b></div>
         <div class="stat">Ušetřený čas: <b id="saved">0:00</b></div>
@@ -295,47 +139,37 @@
         Tip: Geolokace funguje na <span class="kbd">https</span> nebo <span class="kbd">localhost</span>.
       </div>
     </footer>
-
-  </div><!-- /#app -->
-
-  <!-- ===== NICKNAME OVERLAY (mimo #app) ===== -->
-  <div id="nickOverlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="nickTitle">
-    <div id="nickCard">
-      <h2 id="nickTitle">Vítej v Hanychov Hunt! 👋</h2>
-      <p>Zadej přezdívku, pod kterou se zobrazíš v žebříčku. Můžeš ji kdykoli změnit klepnutím na své jméno v hlavičce.</p>
-      <input id="nickInput" type="text" maxlength="30" placeholder="Např. Rychlonožka" autocomplete="off" />
-      <div id="nickError"></div>
-      <button class="primary" id="btnNickConfirm">Začít hrát →</button>
-    </div>
   </div>
 
 
-  <!-- ===== DRAWER mimo #app — position:fixed vztažen ke skutečnému viewportu ===== -->
+  <!-- Leaderboard drawer -->
   <aside id="drawer" class="drawer" aria-hidden="true">
-    <div class="drawer-header">
+    <header>
       <div class="left">
-        <h1 style="font-size:14px;margin:0;">Žebříček 🌐</h1>
-        <span class="badge" id="lbModeBadge">Multiplayer</span>
+        <h1 style="margin:0;font-size:14px;">Žebříček 🌐</h1>
+        <span class="badge">Multiplayer</span>
       </div>
       <button id="btnCloseDrawer">Zavřít</button>
-    </div>
-    <div class="drawer-body">
+    </header>
+    <div class="body">
       <p class="muted" style="margin:0 0 10px;">
         Multiplayer žebříček přes Supabase. Po nastavení URL a klíče se výsledky sdílejí mezi všemi hráči.
       </p>
       <table>
-        <thead><tr><th>#</th><th>Přezdívka</th><th>Body</th><th>Ušetř. čas</th><th>Datum</th></tr></thead>
+        <thead><tr><th>#</th><th>Přezdívka</th><th>Body</th><th>Ušetřený čas</th><th>Datum</th></tr></thead>
         <tbody id="lbBody"></tbody>
       </table>
     </div>
-    <div class="drawer-footer">
+    <footer style="padding:14px; border-top:1px solid #1f2937; display:flex; gap:10px; justify-content:space-between;">
       <button id="btnSaveRun">Uložit běh</button>
-      <button id="btnClearLb">Smazat žebříček</button>
-    </div>
+      <button id="btnClearLb">Smazat lokální</button>
+    </footer>
   </aside>
 
-
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Leaflet -->
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
@@ -383,47 +217,61 @@
       }
     ];
 
-    // ===== 2) STAV =====
-    const LS_KEY = "hanychov_hunt_state_v2"; // v2 — nový klíč, čistý reset po přidání bodů
+    // ===== 2) SUPABASE =====
+    // Vyplň ze svého projektu: https://app.supabase.com → Settings → API
+    const SUPABASE_URL  = "https://TVUJ-PROJEKT.supabase.co";
+    const SUPABASE_ANON = "TVUJ-ANON-KEY";
+    // SQL pro tabulku (spusť jednou v Supabase SQL editoru):
+    // CREATE TABLE leaderboard (
+    //   id bigint generated always as identity primary key,
+    //   nickname text not null,
+    //   score integer not null default 0,
+    //   saved_seconds integer not null default 0,
+    //   created_at timestamptz default now()
+    // );
+    // ALTER TABLE leaderboard ENABLE ROW LEVEL SECURITY;
+    // CREATE POLICY "read"   ON leaderboard FOR SELECT USING (true);
+    // CREATE POLICY "insert" ON leaderboard FOR INSERT WITH CHECK (true);
+
+    let sb = null;
+    try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON); } catch(e) {}
+    const sbReady = SUPABASE_URL !== "https://TVUJ-PROJEKT.supabase.co";
+
+    // ===== 3) STAV =====
+    const LS_KEY = "hanychov_hunt_v3";
     const LS_LB  = "hanychov_hunt_lb_v1";
 
-    const defaultClosed   = Object.fromEntries(TARGETS.map(t => [t.id, false]));
-    const defaultAnswered = Object.fromEntries(TARGETS.map(t => [t.id, false]));
-
     const state = loadState() ?? {
-      nickname: "", score: 0, savedSeconds: 0,
-      closed:   { ...defaultClosed },
-      answered: { ...defaultAnswered },
+      nickname: "",
+      score: 0,
+      savedSeconds: 0,
+      closed:   Object.fromEntries(TARGETS.map(t => [t.id, false])),
+      answered: Object.fromEntries(TARGETS.map(t => [t.id, false])),
     };
 
-    // Aktuální bod, pro který je panel otevřen
-    let activeTarget = null;
-
-    // ===== 3) DOM REFS =====
+    // ===== 4) DOM =====
     const elStatus       = document.getElementById("status");
     const elScore        = document.getElementById("score");
     const elSaved        = document.getElementById("saved");
     const elAcc          = document.getElementById("acc");
     const elNickPill     = document.getElementById("nickPill");
-    const questionPanel  = document.getElementById("questionPanel");
-    const pointNameLabel = document.getElementById("pointNameLabel");
+    const pointNameBadge = document.getElementById("pointNameBadge");
     const pointsBadge    = document.getElementById("pointsBadge");
     const questionText   = document.getElementById("questionText");
-    const optA           = document.getElementById("optA");
-    const optB           = document.getElementById("optB");
-    const optC           = document.getElementById("optC");
-    const optD           = document.getElementById("optD");
+    const optA = document.getElementById("optA");
+    const optB = document.getElementById("optB");
+    const optC = document.getElementById("optC");
+    const optD = document.getElementById("optD");
     const resultBox      = document.getElementById("resultBox");
     const btnSubmit      = document.getElementById("btnSubmit");
-    const btnClosePanel  = document.getElementById("btnClosePanel");
+    const btnClose       = document.getElementById("btnClose");
     const elTimer        = document.getElementById("timer");
     const drawer         = document.getElementById("drawer");
     const lbBody         = document.getElementById("lbBody");
 
-    // ===== 4) MAPA =====
-    // Střed mapy = geometrický střed všech bodů
-    const centerLat = TARGETS.reduce((s,t) => s + t.lat, 0) / TARGETS.length;
-    const centerLng = TARGETS.reduce((s,t) => s + t.lng, 0) / TARGETS.length;
+    // ===== 5) MAPA =====
+    const centerLat = TARGETS.reduce((s,t) => s+t.lat, 0) / TARGETS.length;
+    const centerLng = TARGETS.reduce((s,t) => s+t.lng, 0) / TARGETS.length;
     const map = L.map("map").setView([centerLat, centerLng], 15);
 
     L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
@@ -431,30 +279,21 @@
       attribution: "Map data © OpenStreetMap contributors | © OpenTopoMap"
     }).addTo(map);
 
-    // Markery a zónové kruhy pro každý bod
-    const markerMap = {};   // id → L.marker
-    const zoneMap   = {};   // id → L.circle
-
+    const markerMap = {}, zoneMap = {};
     TARGETS.forEach(t => {
-      const m = L.marker([t.lat, t.lng]).addTo(map);
-      m.bindPopup(`<b>${t.name}</b><br/>${t.points} bodů`);
-      markerMap[t.id] = m;
-
-      const z = L.circle([t.lat, t.lng],
+      markerMap[t.id] = L.marker([t.lat, t.lng]).addTo(map)
+        .bindPopup(`<b>${t.name}</b><br/>${t.points} bodů`);
+      zoneMap[t.id] = L.circle([t.lat, t.lng],
         { radius: 25, weight: 2, color: "#2563eb", fillOpacity: .08 }).addTo(map);
-      zoneMap[t.id] = z;
     });
 
     let userMarker = null, accCircle = null, lastFix = null;
 
-    // Po animaci panelu přepočítáme velikost mapy
-    function invalidateMap() { setTimeout(() => map.invalidateSize(), 320); }
-
-    // ===== 5) HELPERY =====
+    // ===== 6) HELPERY =====
     function loadState() { try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch { return null; } }
     function saveState() { localStorage.setItem(LS_KEY, JSON.stringify(state)); renderStats(); renderMarkerState(); }
-    function fmt(s)      { return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
-    function clamp(n,a,b){ return Math.max(a,Math.min(b,n)); }
+    function fmt(s) { return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
+    function clamp(n,a,b) { return Math.max(a, Math.min(b, n)); }
     function dist(la1,lo1,la2,lo2) {
       const R=6371000, r=d=>d*Math.PI/180, dLa=r(la2-la1), dLo=r(lo2-lo1);
       const a=Math.sin(dLa/2)**2+Math.cos(r(la1))*Math.cos(r(la2))*Math.sin(dLo/2)**2;
@@ -462,67 +301,39 @@
     }
     function calcR(ac) { return !ac||!isFinite(ac)?25:clamp(Math.round(ac*1.2),10,50); }
     function esc(s) { return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c])); }
-
-    // ===== 6) NICKNAME — vlastní overlay místo prompt() =====
-    const nickOverlay   = document.getElementById("nickOverlay");
-    const nickInput     = document.getElementById("nickInput");
-    const nickError     = document.getElementById("nickError");
-    const btnNickConfirm = document.getElementById("btnNickConfirm");
-
-    function showNickOverlay(prefill = "") {
-      nickInput.value  = prefill;
-      nickError.textContent = "";
-      nickOverlay.classList.remove("hidden");
-      // Focus po krátké prodlevě — iOS potřebuje čas po zobrazení
-      setTimeout(() => nickInput.focus(), 120);
+    function fmtDate(ts) {
+      if (!ts) return "—";
+      const d = new Date(ts);
+      return `${d.getDate()}.${d.getMonth()+1}. ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
     }
 
-    function hideNickOverlay() {
-      nickOverlay.classList.add("hidden");
-    }
-
-    function confirmNick() {
-      const val = nickInput.value.trim();
-      if (val.length < 2) {
-        nickError.textContent = "Přezdívka musí mít aspoň 2 znaky.";
-        nickInput.focus();
-        return;
-      }
-      state.nickname = val;
-      saveState();
-      hideNickOverlay();
-    }
-
-    btnNickConfirm.addEventListener("click", confirmNick);
-    nickInput.addEventListener("keydown", e => { if (e.key === "Enter") confirmNick(); });
-
-    // Klik na pill v headeru → změna přezdívky
-    document.getElementById("nickPill").addEventListener("click", () => {
-      showNickOverlay(state.nickname);
-    });
-
+    // ===== 7) NICKNAME (prompt — jednoduché a spolehlivé) =====
     function ensureNick() {
       if (state.nickname?.trim().length >= 2) return;
-      showNickOverlay("");
+      const val = prompt("Zadej přezdívku (min. 2 znaky):", state.nickname || "") ?? "";
+      state.nickname = val.trim().length >= 2 ? val.trim() : "Hráč";
+      saveState();
     }
+    elNickPill.addEventListener("click", () => {
+      const val = prompt("Změň přezdívku:", state.nickname || "") ?? "";
+      if (val.trim().length >= 2) { state.nickname = val.trim(); saveState(); }
+    });
 
-    // ===== 7) RENDER =====
+    // ===== 8) RENDER =====
     function renderStats() {
       elScore.textContent    = state.score;
       elSaved.textContent    = fmt(state.savedSeconds);
-      elNickPill.textContent = `Přezdívka: ${state.nickname||"—"}`;
+      elNickPill.textContent = `Přezdívka: ${state.nickname || "—"}`;
     }
     function renderMarkerState() {
       TARGETS.forEach(t => {
         const c = !!state.closed[t.id];
         markerMap[t.id].setOpacity(c ? 0.45 : 1);
         markerMap[t.id].bindPopup(c
-          ? `<b>${t.name}</b><br/>Uzavřeno — získáno: ${state.answered[t.id] ? t.points : 0} bodů`
+          ? `<b>${t.name}</b><br/>Uzavřeno — ${state.answered[t.id] ? t.points : 0} bodů`
           : `<b>${t.name}</b><br/>${t.points} bodů`);
       });
     }
-
-    // Vizuální highlight vybrané možnosti
     document.querySelectorAll('input[name="ans"]').forEach(r =>
       r.addEventListener("change", () => {
         document.querySelectorAll(".opt").forEach(l => l.classList.remove("selected"));
@@ -530,25 +341,25 @@
       })
     );
 
-    // ===== 8) PANEL OTÁZKY =====
-    let timerInt = null, remaining = 180, panelOpen = false;
+    // ===== 9) PANEL OTÁZKY =====
+    const questionPanel = document.getElementById("questionPanel");
+    let timerInt = null, remaining = 180, questionOpen = false, activeTarget = null;
 
-    function openPanel(target) {
-      map.closePopup();
-      if (panelOpen || state.closed[target.id]) return;
+    function invalidateMap() { setTimeout(() => map.invalidateSize(), 320); }
+
+    function openQuestion(target) {
+      if (questionOpen || state.closed[target.id]) return;
       activeTarget = target;
-      panelOpen = true;
+      questionOpen = true;
       remaining = 180;
 
-      // reset UI
       resultBox.style.display = "none";
       resultBox.className = "result";
       btnSubmit.disabled = false;
       document.querySelectorAll('input[name="ans"]').forEach(r => r.checked = false);
       document.querySelectorAll(".opt").forEach(l => l.classList.remove("selected"));
 
-      // naplnit
-      pointNameLabel.textContent = target.name;
+      pointNameBadge.textContent = target.name;
       pointsBadge.textContent    = `${target.points} bodů`;
       questionText.textContent   = target.question.text;
       optA.textContent = target.question.options.a;
@@ -569,9 +380,9 @@
       }, 1000);
     }
 
-    function closePanel() {
+    function closeModal() {
       questionPanel.classList.remove("open");
-      panelOpen = false;
+      questionOpen = false;
       activeTarget = null;
       elTimer.classList.remove("urgent");
       if (timerInt) { clearInterval(timerInt); timerInt = null; }
@@ -581,13 +392,13 @@
     function closeAsTimeout() {
       if (timerInt) { clearInterval(timerInt); timerInt = null; }
       const t = activeTarget;
-      state.closed[t.id]   = true;
+      state.closed[t.id] = true;
       state.answered[t.id] = false;
       resultBox.style.display = "block";
       resultBox.className = "result bad";
       resultBox.textContent = `Čas vypršel. +0 bodů. Správná odpověď: ${t.question.correct.toUpperCase()}) ${t.question.options[t.question.correct]}.`;
       btnSubmit.disabled = true;
-      setTimeout(() => { closePanel(); saveState(); }, 2000);
+      setTimeout(() => { closeModal(); saveState(); }, 2000);
     }
 
     btnSubmit.addEventListener("click", () => {
@@ -595,33 +406,28 @@
       const chosen = document.querySelector('input[name="ans"]:checked')?.value;
       if (!chosen) { alert("Vyber jednu odpověď."); return; }
       if (timerInt) { clearInterval(timerInt); timerInt = null; }
-
-      const t  = activeTarget;
-      const ok = chosen === t.question.correct;
+      const t = activeTarget, ok = chosen === t.question.correct;
       if (ok) { state.score += t.points; state.savedSeconds += remaining; }
       state.answered[t.id] = ok;
       state.closed[t.id]   = true;
-
       resultBox.style.display = "block";
       resultBox.className = `result ${ok ? "ok" : "bad"}`;
       resultBox.textContent =
         (ok ? `Správně! +${t.points} bodů. ` : "Špatně. +0 bodů. ") +
         `Správná odpověď: ${t.question.correct.toUpperCase()}) ${t.question.options[t.question.correct]}.`;
       btnSubmit.disabled = true;
-      setTimeout(() => { closePanel(); saveState(); }, 2000);
+      setTimeout(() => { closeModal(); saveState(); }, 2000);
     });
 
-    btnClosePanel.addEventListener("click", closePanel);
+    btnClose.addEventListener("click", closeModal);
 
-    // ===== 9) GEOLOKACE =====
+    // ===== 10) GEOLOKACE =====
     function setStatus(t) { elStatus.textContent = t; }
 
-    let gpsWatchdogTimer = null;
-    let gpsWatchId = null;
-    let gpsFirstFix = false; // watchdog spustíme až po prvním úspěšném fixu
+    let gpsWatchdogTimer = null, gpsWatchId = null, gpsFirstFix = false;
 
     function resetGpsWatchdog() {
-      if (!gpsFirstFix) return; // před prvním fixem watchdog neběží
+      if (!gpsFirstFix) return;
       if (gpsWatchdogTimer) clearTimeout(gpsWatchdogTimer);
       gpsWatchdogTimer = setTimeout(() => {
         setStatus("⚠️ GPS nereaguje — klepni sem pro obnovení");
@@ -634,80 +440,48 @@
     function restartGps() {
       if (gpsWatchId !== null) navigator.geolocation.clearWatch(gpsWatchId);
       if (gpsWatchdogTimer) clearTimeout(gpsWatchdogTimer);
-      elStatus.style.cursor = "";
-      elStatus.style.borderColor = "";
-      elStatus.onclick = null;
+      elStatus.style.cursor = ""; elStatus.style.borderColor = ""; elStatus.onclick = null;
       gpsFirstFix = false;
       setStatus("Obnovuji GPS…");
-      setTimeout(() => startWatching(), 500);
+      setTimeout(startWatching, 500);
     }
 
     function startWatching() {
       gpsWatchId = navigator.geolocation.watchPosition(pos => {
         lastFix = pos;
-
-        // První fix
-        if (!gpsFirstFix) {
-          gpsFirstFix = true;
-          setStatus("📍 GPS nalezena — hledám body…");
-        }
+        if (!gpsFirstFix) { gpsFirstFix = true; setStatus("📍 GPS nalezena — hledám body…"); }
         resetGpsWatchdog();
-
-        elStatus.style.cursor = "";
-        elStatus.style.borderColor = "";
-        elStatus.onclick = null;
+        elStatus.style.cursor = ""; elStatus.style.borderColor = ""; elStatus.onclick = null;
 
         const { latitude:la, longitude:lo, accuracy:ac } = pos.coords;
         elAcc.textContent = `${Math.round(ac)} m`;
 
         if (!userMarker) userMarker = L.marker([la,lo]).addTo(map).bindPopup("Ty");
         else userMarker.setLatLng([la,lo]);
-
         if (!accCircle) accCircle = L.circle([la,lo],{radius:ac,weight:1,color:"#94a3b8"}).addTo(map);
         else accCircle.setLatLng([la,lo]).setRadius(ac);
 
         const r = calcR(ac);
         TARGETS.forEach(t => zoneMap[t.id].setRadius(r));
 
-        if (panelOpen) return;
-
-        const allClosed = TARGETS.every(t => state.closed[t.id]);
-        if (allClosed) { setStatus("Všechny body splněny! 🎉"); return; }
+        if (questionOpen) return;
+        if (TARGETS.every(t => state.closed[t.id])) { setStatus("Všechny body splněny! 🎉"); return; }
 
         let nearest = null, nearestDist = Infinity;
         for (const t of TARGETS) {
           if (state.closed[t.id]) continue;
           const d = dist(la, lo, t.lat, t.lng);
-          if (d <= r) { openPanel(t); return; }
+          if (d <= r) { openQuestion(t); return; }
           if (d < nearestDist) { nearestDist = d; nearest = t; }
         }
-
         if (nearest) setStatus(`Nejblíž: ${nearest.name} — ${Math.round(nearestDist)} m (tolerance ~${r} m)`);
-        else setStatus("📍 GPS aktivní");
 
       }, err => {
-        // Kód 3 = timeout jednoho updatu — u watchPosition je to normální jev,
-        // nezobrazujeme chybu, jen restartujeme watchdog.
-        if (err.code === 3) {
-          if (gpsFirstFix) {
-            // Máme už fix — tiše ignorujeme, watchdog se postará pokud GPS zmizí
-            return;
-          }
-          // Před prvním fixem timeout — zkusíme znovu s nižší přesností
-          setStatus("⏳ GPS trvá déle… zkouším nižší přesnost");
-          navigator.geolocation.clearWatch(gpsWatchId);
-          gpsWatchId = navigator.geolocation.watchPosition(
-            pos => { startWatching._cb && startWatching._cb(pos); },
-            () => {},
-            { enableHighAccuracy: false, maximumAge: 10000, timeout: 20000 }
-          );
-          return;
-        }
+        if (err.code === 3 && gpsFirstFix) return; // tiché timeout po prvním fixu
         if (err.code === 1) setStatus("⚠️ Povolení GPS zamítnuto — povol polohu v nastavení.");
         else if (err.code === 2) setStatus("⚠️ GPS signál nedostupný — zkus jít ven.");
+        else if (!gpsFirstFix) setStatus("⏳ GPS trvá déle… zkus jít ven.");
       },
-      // timeout: Infinity = watchPosition nikdy sám od sebe nevyhodí timeout chybu.
-      // O výpadek se stará náš vlastní watchdog (20 s bez updatu → upozornění).
       { enableHighAccuracy: true, maximumAge: 3000, timeout: Infinity });
     }
 
@@ -717,154 +491,76 @@
       startWatching();
     }
 
-    // ===== 10) LEADERBOARD — Supabase multiplayer =====
-    // ⚙️  KONFIGURACE: Vyplň URL a anon key ze svého Supabase projektu
-    //     https://app.supabase.com → Settings → API
-    const SUPABASE_URL  = "https://TVUJ-PROJEKT.supabase.co";
-    const SUPABASE_ANON = "TVUJ-ANON-KEY";
-
-    // SQL pro vytvoření tabulky (spusť jednou v Supabase SQL editoru):
-    // CREATE TABLE leaderboard (
-    //   id bigint generated always as identity primary key,
-    //   nickname text not null,
-    //   score integer not null default 0,
-    //   saved_seconds integer not null default 0,
-    //   created_at timestamptz default now()
-    // );
-    // ALTER TABLE leaderboard ENABLE ROW LEVEL SECURITY;
-    // CREATE POLICY "Anyone can read"  ON leaderboard FOR SELECT USING (true);
-    // CREATE POLICY "Anyone can insert" ON leaderboard FOR INSERT WITH CHECK (true);
-
-    let sb = null;
-    try {
-      sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-    } catch(e) { console.warn("Supabase init failed:", e); }
-
-    function fmtDate(ts) {
-      if (!ts) return "—";
-      const d = new Date(ts);
-      return `${d.getDate()}.${d.getMonth()+1}. ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-    }
-
-    // Lokální fallback cache
+    // ===== 11) LEADERBOARD =====
     function loadLbLocal() { try { return JSON.parse(localStorage.getItem(LS_LB))??[]; } catch { return []; } }
     function saveLbLocal(a) { localStorage.setItem(LS_LB, JSON.stringify(a)); }
 
     async function renderLb() {
       lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Načítám…</td></tr>`;
       let entries = [];
-      const isConfigured = SUPABASE_URL !== "https://TVUJ-PROJEKT.supabase.co";
 
-      if (sb && isConfigured) {
+      if (sb && sbReady) {
         try {
-          const { data, error } = await sb
-            .from("leaderboard")
+          const { data, error } = await sb.from("leaderboard")
             .select("nickname,score,saved_seconds,created_at")
             .order("score", { ascending: false })
             .order("saved_seconds", { ascending: false })
             .limit(50);
           if (error) throw error;
-          entries = data.map(x => ({
-            nickname: x.nickname,
-            score: x.score,
-            savedSeconds: x.saved_seconds,
-            at: x.created_at
-          }));
-        } catch(e) {
-          console.warn("Supabase fetch failed, falling back to local:", e);
-          entries = loadLbLocal();
-        }
+          entries = data.map(x => ({ nickname: x.nickname, score: x.score, savedSeconds: x.saved_seconds, at: x.created_at }));
+        } catch { entries = loadLbLocal(); }
       } else {
-        // Supabase není nakonfigurováno — zobraz lokální + upozornění
+        lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty" style="color:#fbbf24">⚙️ Nastav Supabase v kódu pro multiplayer.<br/><span style="color:#6b7280;font-size:11px">Zobrazuji lokální záznamy.</span></td></tr>`;
         entries = loadLbLocal();
-        if (!isConfigured) {
-          lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty" style="color:#fbbf24">
-            ⚙️ Nastav Supabase URL a klíč v kódu pro multiplayer žebříček.<br/>
-            <span style="color:#6b7280;font-size:11px">Zatím zobrazuji lokální záznamy.</span>
-          </td></tr>`;
-          if (entries.length === 0) return;
-          lbBody.innerHTML += entries
-            .sort((a,b) => (b.score - a.score)||(b.savedSeconds - a.savedSeconds))
-            .map((x,i) => `<tr>
-              <td>${i+1}</td><td>${esc(x.nickname)}</td>
-              <td><b>${x.score}</b></td><td>${fmt(x.savedSeconds)}</td>
-              <td style="color:#6b7280">${fmtDate(x.at)}</td>
-            </tr>`).join("");
-          return;
-        }
-      }
-
-      if (entries.length === 0) {
-        lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Žebříček je zatím prázdný.<br/>Dohraj hru a klikni „Uložit běh".</td></tr>`;
+        if (!entries.length) return;
+        entries.sort((a,b) => (b.score-a.score)||(b.savedSeconds-a.savedSeconds));
+        lbBody.innerHTML += entries.map((x,i) => `<tr><td>${i+1}</td><td>${esc(x.nickname)}</td><td><b>${x.score}</b></td><td>${fmt(x.savedSeconds)}</td><td style="color:#6b7280">${fmtDate(x.at)}</td></tr>`).join("");
         return;
       }
 
-      lbBody.innerHTML = entries.map((x, i) => `
-        <tr${i === 0 ? ' style="color:#fbbf24"' : ''}>
-          <td>${i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i+1}</td>
-          <td>${esc(x.nickname)}</td>
-          <td><b>${x.score}</b></td>
+      if (!entries.length) {
+        lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Žebříček je zatím prázdný.</td></tr>`;
+        return;
+      }
+      lbBody.innerHTML = entries.map((x,i) => `
+        <tr${i===0?' style="color:#fbbf24"':''}>
+          <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
+          <td>${esc(x.nickname)}</td><td><b>${x.score}</b></td>
           <td>${fmt(x.savedSeconds)}</td>
           <td style="color:#6b7280">${fmtDate(x.at)}</td>
         </tr>`).join("");
     }
 
-    // Příznak: byl run již v tomto sezení uložen?
     let runSaved = false;
-    const btnSaveRun = document.getElementById("btnSaveRun");
-
     document.getElementById("btnLeaderboard").addEventListener("click", () => {
       drawer.classList.add("open"); drawer.setAttribute("aria-hidden","false"); renderLb();
     });
     document.getElementById("btnCloseDrawer").addEventListener("click", () => {
       drawer.classList.remove("open"); drawer.setAttribute("aria-hidden","true");
     });
-
-    btnSaveRun.addEventListener("click", async () => {
+    document.getElementById("btnSaveRun").addEventListener("click", async () => {
       if (runSaved) return;
       ensureNick();
       if (!state.nickname || state.nickname.trim().length < 2) return;
-
-      const entry = {
-        nickname: state.nickname,
-        score: state.score,
-        savedSeconds: state.savedSeconds,
-        at: Date.now()
-      };
-
-      // Vždy ulož lokálně jako zálohu
       const local = loadLbLocal();
-      local.push(entry);
+      local.push({ nickname: state.nickname, score: state.score, savedSeconds: state.savedSeconds, at: Date.now() });
       saveLbLocal(local);
-
-      const isConfigured = SUPABASE_URL !== "https://TVUJ-PROJEKT.supabase.co";
-      if (sb && isConfigured) {
+      if (sb && sbReady) {
         try {
-          const { error } = await sb.from("leaderboard").insert({
-            nickname: state.nickname,
-            score: state.score,
-            saved_seconds: state.savedSeconds
-          });
-          if (error) throw error;
-          btnSaveRun.textContent = "✓ Uloženo online";
-        } catch(e) {
-          console.warn("Supabase insert failed:", e);
-          btnSaveRun.textContent = "✓ Uloženo lokálně";
-        }
+          await sb.from("leaderboard").insert({ nickname: state.nickname, score: state.score, saved_seconds: state.savedSeconds });
+          document.getElementById("btnSaveRun").textContent = "✓ Uloženo online";
+        } catch { document.getElementById("btnSaveRun").textContent = "✓ Uloženo lokálně"; }
       } else {
-        btnSaveRun.textContent = "✓ Uloženo lokálně";
+        document.getElementById("btnSaveRun").textContent = "✓ Uloženo lokálně";
       }
-
-      renderLb();
-      runSaved = true;
-      btnSaveRun.disabled = true;
+      renderLb(); runSaved = true;
+      document.getElementById("btnSaveRun").disabled = true;
     });
-
     document.getElementById("btnClearLb").addEventListener("click", () => {
       if (confirm("Smazat lokální záznamy?")) { saveLbLocal([]); renderLb(); }
     });
 
-    // ===== 11) OVLÁDÁNÍ =====
+    // ===== 12) OVLÁDÁNÍ =====
     document.getElementById("btnCenter").addEventListener("click", () => {
       if (lastFix) map.setView([lastFix.coords.latitude, lastFix.coords.longitude], 17);
       else map.setView([centerLat, centerLng], 15);
@@ -872,15 +568,15 @@
     document.getElementById("btnReset").addEventListener("click", () => {
       if (!confirm("Resetovat prototyp?")) return;
       state.score = 0; state.savedSeconds = 0;
-      TARGETS.forEach(t => { state.closed[t.id] = false; state.answered[t.id] = false; });
-      if (panelOpen) closePanel();
+      TARGETS.forEach(t => { state.closed[t.id]=false; state.answered[t.id]=false; });
+      if (questionOpen) closeModal();
       runSaved = false;
-      btnSaveRun.textContent = "Uložit běh";
-      btnSaveRun.disabled = false;
+      document.getElementById("btnSaveRun").textContent = "Uložit běh";
+      document.getElementById("btnSaveRun").disabled = false;
       saveState(); alert("Reset hotov.");
     });
 
-    // ===== 12) PWA =====
+    // ===== 13) PWA =====
     if ("serviceWorker" in navigator)
       window.addEventListener("load", async () => {
         try { await navigator.serviceWorker.register("./sw.js"); } catch {}
