@@ -1,4 +1,4 @@
-const CACHE = "hanychov-hunt-v1";
+const CACHE = "hanychov-hunt-v2";
 const ASSETS = ["./", "./index.html", "./manifest.json"];
 
 self.addEventListener("install", (e) => {
