@@ -49,15 +49,16 @@
       transform: translateZ(0);  /* iOS fix (vynutí vrstvu nad mapou) */
 }
     .modal {
-      position: relative;   /* ← PŘIDEJ */
-      z-index: 100000;      /* ← PŘIDEJ */
+      position: relative;
+      z-index: 1000000;          /* nad modal-backdrop */
+      transform: translateZ(0);  /* iOS fix */
       width: min(520px, 100%);
       background: #0b1220;
       border: 1px solid #1f2937;
       border-radius: 16px;
       box-shadow: 0 20px 70px rgba(0,0,0,.6);
       overflow: hidden;
-    }
+}
     .modal header { border-bottom: 1px solid #1f2937; }
     .modal .content { padding: 14px; display: grid; gap: 10px; }
     .q { font-size: 16px; font-weight: 800; }
@@ -84,6 +85,20 @@
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 10px 8px; border-bottom: 1px solid #1f2937; font-size: 13px; text-align: left; }
     th { color: #cbd5e1; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
+
+    /* ===== Leaflet layer fix — ať mapa nikdy nepřekryje modal ===== */
+
+    .leaflet-pane,
+    .leaflet-control,
+    .leaflet-top,
+    .leaflet-bottom {
+    z-index: 10 !important;
+}
+
+.leaflet-popup {
+  z-index: 20 !important;
+}
+    
   </style>
 </head>
 <body>
@@ -596,5 +611,6 @@
 </body>
 
 </html>
+
 
 
