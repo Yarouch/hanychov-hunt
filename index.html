@@ -158,6 +158,49 @@
       background: #1d4ed8; border-color: #2563eb; color: #fff;
     }
     button.primary:active { background: #1e40af; }
+    button:disabled { opacity: .4; cursor: default; }
+
+    /* Pill přezdívky — klikatelný pro změnu */
+    #nickPill { cursor: pointer; transition: border-color .15s; }
+    #nickPill:hover { border-color: #6b7280; }
+
+    /* ===== NICKNAME OVERLAY =====
+       Vlastní formulář místo prompt() — prompt() je v PWA/standalone
+       na iOS Safari nespolehlivý (může být tiše ignorován).
+    ===== */
+    #nickOverlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.75);
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+      z-index: 1000;
+    }
+    #nickOverlay.hidden { display: none; }
+    #nickCard {
+      width: min(360px, 100%);
+      background: #111827;
+      border: 1px solid #374151;
+      border-radius: 16px;
+      padding: 24px;
+      display: grid; gap: 16px;
+    }
+    #nickCard h2 { margin: 0; font-size: 18px; font-weight: 800; }
+    #nickCard p  { margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5; }
+    #nickInput {
+      width: 100%;
+      background: #0b1220; border: 1px solid #374151;
+      color: #e5e7eb; border-radius: 10px;
+      padding: 12px 14px; font-size: 16px; /* 16px zabrání zoom na iOS */
+      outline: none; box-sizing: border-box;
+    }
+    #nickInput:focus { border-color: #2563eb; }
+    #nickError { color: #f87171; font-size: 12px; min-height: 16px; }
+
+    /* Žebříček — prázdný stav */
+    .lb-empty {
+      padding: 32px 0; text-align: center;
+      color: #6b7280; font-size: 13px;
+    }
 
     /* ===== DRAWER — MIMO #app → position:fixed = viewport ===== */
     .drawer {
@@ -255,6 +298,17 @@
 
   </div><!-- /#app -->
 
+  <!-- ===== NICKNAME OVERLAY (mimo #app) ===== -->
+  <div id="nickOverlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="nickTitle">
+    <div id="nickCard">
+      <h2 id="nickTitle">Vítej v Hanychov Hunt! 👋</h2>
+      <p>Zadej přezdívku, pod kterou se zobrazíš v žebříčku. Můžeš ji kdykoli změnit klepnutím na své jméno v hlavičce.</p>
+      <input id="nickInput" type="text" maxlength="30" placeholder="Např. Rychlonožka" autocomplete="off" />
+      <div id="nickError"></div>
+      <button class="primary" id="btnNickConfirm">Začít hrát →</button>
+    </div>
+  </div>
+
 
   <!-- ===== DRAWER mimo #app — position:fixed vztažen ke skutečnému viewportu ===== -->
   <aside id="drawer" class="drawer" aria-hidden="true">
@@ -270,7 +324,7 @@
         Lokální žebříček – pro všechny hráče přidáme Supabase/Firebase.
       </p>
       <table>
-        <thead><tr><th>#</th><th>Přezdívka</th><th>Body</th><th>Ušetřený čas</th></tr></thead>
+        <thead><tr><th>#</th><th>Přezdívka</th><th>Body</th><th>Ušetř. čas</th><th>Datum</th></tr></thead>
         <tbody id="lbBody"></tbody>
       </table>
     </div>
@@ -288,29 +342,61 @@
   ></script>
 
   <script>
-    // ===== 1) KONFIGURACE BODU =====
-    const TARGET = {
-      id: "za-domovem-558",
-      name: "Za Domovem 558",
-      lat: 50.7394476,
-      lng: 15.0092092,
-      points: 100,
-      question: {
-        text: "Kolik...?",
-        options: { a: "1", b: "2", c: "3", d: "4" },
-        correct: "a"
+    // ===== 1) KONFIGURACE BODŮ =====
+    const TARGETS = [
+      {
+        id: "za-domovem-558",
+        name: "Za Domovem 558",
+        lat: 50.7394476,
+        lng: 15.0092092,
+        points: 100,
+        question: {
+          text: "Kolik...?",
+          options: { a: "1", b: "2", c: "3", d: "4" },
+          correct: "a"
+        }
+      },
+      {
+        id: "hasicska-zbrojnice",
+        name: "Hasičská zbrojnice",
+        lat: 50.7399112,
+        lng: 15.0185144,
+        points: 300,
+        question: {
+          text: "V jakém roce byl založen místní sbor dobrovolných hasičů?",
+          options: { a: "1899", b: "1900", c: "1901", d: "1902" },
+          correct: "c"
+        }
+      },
+      {
+        id: "spaleniste",
+        name: "Spáleniště",
+        lat: 50.7402846,
+        lng: 15.0169694,
+        points: 500,
+        question: {
+          text: "V jakém roce vyhořela místní restaurace „Zum Walhalla"?",
+          options: { a: "1918", b: "1942", c: "1945", d: "1968" },
+          correct: "b"
+        }
       }
-    };
+    ];
 
     // ===== 2) STAV =====
-    const LS_KEY = "hanychov_hunt_state_v1";
+    const LS_KEY = "hanychov_hunt_state_v2"; // v2 — nový klíč, čistý reset po přidání bodů
     const LS_LB  = "hanychov_hunt_lb_v1";
+
+    const defaultClosed   = Object.fromEntries(TARGETS.map(t => [t.id, false]));
+    const defaultAnswered = Object.fromEntries(TARGETS.map(t => [t.id, false]));
 
     const state = loadState() ?? {
       nickname: "", score: 0, savedSeconds: 0,
-      closed:   { [TARGET.id]: false },
-      answered: { [TARGET.id]: false },
+      closed:   { ...defaultClosed },
+      answered: { ...defaultAnswered },
     };
+
+    // Aktuální bod, pro který je panel otevřen
+    let activeTarget = null;
 
     // ===== 3) DOM REFS =====
     const elStatus       = document.getElementById("status");
@@ -334,18 +420,30 @@
     const lbBody         = document.getElementById("lbBody");
 
     // ===== 4) MAPA =====
-    const map = L.map("map").setView([TARGET.lat, TARGET.lng], 16);
+    // Střed mapy = geometrický střed všech bodů
+    const centerLat = TARGETS.reduce((s,t) => s + t.lat, 0) / TARGETS.length;
+    const centerLng = TARGETS.reduce((s,t) => s + t.lng, 0) / TARGETS.length;
+    const map = L.map("map").setView([centerLat, centerLng], 15);
 
     L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
       maxZoom: 17,
       attribution: "Map data © OpenStreetMap contributors | © OpenTopoMap"
     }).addTo(map);
 
-    const targetMarker = L.marker([TARGET.lat, TARGET.lng])
-      .addTo(map).bindPopup(`<b>${TARGET.name}</b><br/>${TARGET.points} bodů`);
+    // Markery a zónové kruhy pro každý bod
+    const markerMap = {};   // id → L.marker
+    const zoneMap   = {};   // id → L.circle
 
-    let zoneCircle = L.circle([TARGET.lat, TARGET.lng],
-      { radius: 10, weight: 2, color: "#2563eb", fillOpacity: .08 }).addTo(map);
+    TARGETS.forEach(t => {
+      const m = L.marker([t.lat, t.lng]).addTo(map);
+      m.bindPopup(`<b>${t.name}</b><br/>${t.points} bodů`);
+      markerMap[t.id] = m;
+
+      const z = L.circle([t.lat, t.lng],
+        { radius: 25, weight: 2, color: "#2563eb", fillOpacity: .08 }).addTo(map);
+      zoneMap[t.id] = z;
+    });
+
     let userMarker = null, accCircle = null, lastFix = null;
 
     // Po animaci panelu přepočítáme velikost mapy
@@ -364,12 +462,47 @@
     function calcR(ac) { return !ac||!isFinite(ac)?25:clamp(Math.round(ac*1.2),10,50); }
     function esc(s) { return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c])); }
 
-    // ===== 6) NICKNAME =====
+    // ===== 6) NICKNAME — vlastní overlay místo prompt() =====
+    const nickOverlay   = document.getElementById("nickOverlay");
+    const nickInput     = document.getElementById("nickInput");
+    const nickError     = document.getElementById("nickError");
+    const btnNickConfirm = document.getElementById("btnNickConfirm");
+
+    function showNickOverlay(prefill = "") {
+      nickInput.value  = prefill;
+      nickError.textContent = "";
+      nickOverlay.classList.remove("hidden");
+      // Focus po krátké prodlevě — iOS potřebuje čas po zobrazení
+      setTimeout(() => nickInput.focus(), 120);
+    }
+
+    function hideNickOverlay() {
+      nickOverlay.classList.add("hidden");
+    }
+
+    function confirmNick() {
+      const val = nickInput.value.trim();
+      if (val.length < 2) {
+        nickError.textContent = "Přezdívka musí mít aspoň 2 znaky.";
+        nickInput.focus();
+        return;
+      }
+      state.nickname = val;
+      saveState();
+      hideNickOverlay();
+    }
+
+    btnNickConfirm.addEventListener("click", confirmNick);
+    nickInput.addEventListener("keydown", e => { if (e.key === "Enter") confirmNick(); });
+
+    // Klik na pill v headeru → změna přezdívky
+    document.getElementById("nickPill").addEventListener("click", () => {
+      showNickOverlay(state.nickname);
+    });
+
     function ensureNick() {
       if (state.nickname?.trim().length >= 2) return;
-      const n = prompt("Zadej přezdívku (min. 2 znaky):", state.nickname||"");
-      state.nickname = (n?.trim().length>=2) ? n.trim() : "Hráč";
-      saveState();
+      showNickOverlay("");
     }
 
     // ===== 7) RENDER =====
@@ -379,11 +512,13 @@
       elNickPill.textContent = `Přezdívka: ${state.nickname||"—"}`;
     }
     function renderMarkerState() {
-      const c = !!state.closed[TARGET.id];
-      targetMarker.setOpacity(c ? 0.45 : 1);
-      targetMarker.bindPopup(c
-        ? `<b>${TARGET.name}</b><br/>Uzavřeno — získáno: ${state.answered[TARGET.id]?TARGET.points:0} bodů`
-        : `<b>${TARGET.name}</b><br/>${TARGET.points} bodů`);
+      TARGETS.forEach(t => {
+        const c = !!state.closed[t.id];
+        markerMap[t.id].setOpacity(c ? 0.45 : 1);
+        markerMap[t.id].bindPopup(c
+          ? `<b>${t.name}</b><br/>Uzavřeno — získáno: ${state.answered[t.id] ? t.points : 0} bodů`
+          : `<b>${t.name}</b><br/>${t.points} bodů`);
+      });
     }
 
     // Vizuální highlight vybrané možnosti
@@ -397,9 +532,10 @@
     // ===== 8) PANEL OTÁZKY =====
     let timerInt = null, remaining = 180, panelOpen = false;
 
-    function openPanel() {
+    function openPanel(target) {
       map.closePopup();
-      if (panelOpen || state.closed[TARGET.id]) return;
+      if (panelOpen || state.closed[target.id]) return;
+      activeTarget = target;
       panelOpen = true;
       remaining = 180;
 
@@ -411,17 +547,16 @@
       document.querySelectorAll(".opt").forEach(l => l.classList.remove("selected"));
 
       // naplnit
-      pointNameLabel.textContent = TARGET.name;
-      pointsBadge.textContent    = `${TARGET.points} bodů`;
-      questionText.textContent   = TARGET.question.text;
-      optA.textContent = TARGET.question.options.a;
-      optB.textContent = TARGET.question.options.b;
-      optC.textContent = TARGET.question.options.c;
-      optD.textContent = TARGET.question.options.d;
+      pointNameLabel.textContent = target.name;
+      pointsBadge.textContent    = `${target.points} bodů`;
+      questionText.textContent   = target.question.text;
+      optA.textContent = target.question.options.a;
+      optB.textContent = target.question.options.b;
+      optC.textContent = target.question.options.c;
+      optD.textContent = target.question.options.d;
       elTimer.textContent = "03:00";
       elTimer.classList.remove("urgent");
 
-      // otevřít panel → grid se přizpůsobí, mapa se zmenší
       questionPanel.classList.add("open");
       invalidateMap();
 
@@ -436,6 +571,7 @@
     function closePanel() {
       questionPanel.classList.remove("open");
       panelOpen = false;
+      activeTarget = null;
       elTimer.classList.remove("urgent");
       if (timerInt) { clearInterval(timerInt); timerInt = null; }
       invalidateMap();
@@ -443,31 +579,33 @@
 
     function closeAsTimeout() {
       if (timerInt) { clearInterval(timerInt); timerInt = null; }
-      state.closed[TARGET.id] = true;
-      state.answered[TARGET.id] = false;
+      const t = activeTarget;
+      state.closed[t.id]   = true;
+      state.answered[t.id] = false;
       resultBox.style.display = "block";
       resultBox.className = "result bad";
-      resultBox.textContent = `Čas vypršel. +0 bodů. Správná odpověď: A) ${TARGET.question.options[TARGET.question.correct]}.`;
+      resultBox.textContent = `Čas vypršel. +0 bodů. Správná odpověď: ${t.question.correct.toUpperCase()}) ${t.question.options[t.question.correct]}.`;
       btnSubmit.disabled = true;
       setTimeout(() => { closePanel(); saveState(); }, 2000);
     }
 
     btnSubmit.addEventListener("click", () => {
-      if (btnSubmit.disabled) return;
+      if (btnSubmit.disabled || !activeTarget) return;
       const chosen = document.querySelector('input[name="ans"]:checked')?.value;
       if (!chosen) { alert("Vyber jednu odpověď."); return; }
       if (timerInt) { clearInterval(timerInt); timerInt = null; }
 
-      const ok = chosen === TARGET.question.correct;
-      if (ok) { state.score += TARGET.points; state.savedSeconds += remaining; }
-      state.answered[TARGET.id] = ok;
-      state.closed[TARGET.id]   = true;
+      const t  = activeTarget;
+      const ok = chosen === t.question.correct;
+      if (ok) { state.score += t.points; state.savedSeconds += remaining; }
+      state.answered[t.id] = ok;
+      state.closed[t.id]   = true;
 
       resultBox.style.display = "block";
       resultBox.className = `result ${ok ? "ok" : "bad"}`;
       resultBox.textContent =
-        (ok ? `Správně! +${TARGET.points} bodů. ` : "Špatně. +0 bodů. ") +
-        `Správná odpověď: A) ${TARGET.question.options[TARGET.question.correct]}.`;
+        (ok ? `Správně! +${t.points} bodů. ` : "Špatně. +0 bodů. ") +
+        `Správná odpověď: ${t.question.correct.toUpperCase()}) ${t.question.options[t.question.correct]}.`;
       btnSubmit.disabled = true;
       setTimeout(() => { closePanel(); saveState(); }, 2000);
     });
@@ -492,13 +630,26 @@
         else accCircle.setLatLng([la,lo]).setRadius(ac);
 
         const r = calcR(ac);
-        zoneCircle.setRadius(r);
 
-        if (state.closed[TARGET.id]) { setStatus("Bod uzavřen."); return; }
+        // Aktualizuj zónové kruhy všech bodů
+        TARGETS.forEach(t => zoneMap[t.id].setRadius(r));
 
-        const d = dist(la,lo,TARGET.lat,TARGET.lng);
-        if (d <= r) { setStatus(`V dosahu (${Math.round(d)} m) → odemykám`); openPanel(); }
-        else setStatus(`Jdi blíž: ${Math.round(d)} m (tolerance ~${r} m)`);
+        // Pokud je panel otevřen, nic dalšího neřešíme
+        if (panelOpen) return;
+
+        // Zkontroluj vzdálenost ke každému neuzavřenému bodu
+        const allClosed = TARGETS.every(t => state.closed[t.id]);
+        if (allClosed) { setStatus("Všechny body splněny! 🎉"); return; }
+
+        let nearest = null, nearestDist = Infinity;
+        for (const t of TARGETS) {
+          if (state.closed[t.id]) continue;
+          const d = dist(la, lo, t.lat, t.lng);
+          if (d <= r) { openPanel(t); return; } // vstup do zóny → okamžitě otevři
+          if (d < nearestDist) { nearestDist = d; nearest = t; }
+        }
+
+        if (nearest) setStatus(`Nejblíž: ${nearest.name} — ${Math.round(nearestDist)} m (tolerance ~${r} m)`);
 
       }, err => setStatus("GPS chyba: "+err.message),
          { enableHighAccuracy:true, maximumAge:1000, timeout:15000 });
@@ -507,12 +658,34 @@
     // ===== 10) LEADERBOARD =====
     function loadLb() { try { return JSON.parse(localStorage.getItem(LS_LB))??[]; } catch { return []; } }
     function saveLb(a) { localStorage.setItem(LS_LB, JSON.stringify(a)); }
-    function renderLb() {
-      const e = loadLb().sort((a,b)=>(b.score-a.score)||(b.savedSeconds-a.savedSeconds));
-      lbBody.innerHTML = e.map((x,i)=>
-        `<tr><td>${i+1}</td><td>${esc(x.nickname)}</td><td>${x.score}</td><td>${fmt(x.savedSeconds)}</td></tr>`
-      ).join("");
+
+    function fmtDate(ts) {
+      if (!ts) return "—";
+      const d = new Date(ts);
+      return `${d.getDate()}.${d.getMonth()+1}. ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
     }
+
+    function renderLb() {
+      const entries = loadLb().sort((a,b) => (b.score - a.score) || (b.savedSeconds - a.savedSeconds));
+
+      if (entries.length === 0) {
+        lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Žebříček je zatím prázdný.<br/>Dohraj hru a klikni „Uložit běh".</td></tr>`;
+        return;
+      }
+
+      lbBody.innerHTML = entries.map((x, i) => `
+        <tr>
+          <td>${i+1}</td>
+          <td>${esc(x.nickname)}</td>
+          <td><b>${x.score}</b></td>
+          <td>${fmt(x.savedSeconds)}</td>
+          <td style="color:#6b7280">${fmtDate(x.at)}</td>
+        </tr>`).join("");
+    }
+
+    // Příznak: byl run již v tomto sezení uložen?
+    let runSaved = false;
+    const btnSaveRun = document.getElementById("btnSaveRun");
 
     document.getElementById("btnLeaderboard").addEventListener("click", () => {
       drawer.classList.add("open"); drawer.setAttribute("aria-hidden","false"); renderLb();
@@ -520,12 +693,20 @@
     document.getElementById("btnCloseDrawer").addEventListener("click", () => {
       drawer.classList.remove("open"); drawer.setAttribute("aria-hidden","true");
     });
-    document.getElementById("btnSaveRun").addEventListener("click", () => {
+
+    btnSaveRun.addEventListener("click", () => {
+      if (runSaved) return; // zabrání duplicitám
       ensureNick();
+      if (!state.nickname || state.nickname.trim().length < 2) return; // overlay otevřen, čekáme
       const a = loadLb();
-      a.push({ nickname:state.nickname, score:state.score, savedSeconds:state.savedSeconds, at:Date.now() });
-      saveLb(a); renderLb(); alert("Uloženo.");
+      a.push({ nickname: state.nickname, score: state.score, savedSeconds: state.savedSeconds, at: Date.now() });
+      saveLb(a);
+      renderLb();
+      runSaved = true;
+      btnSaveRun.textContent = "✓ Uloženo";
+      btnSaveRun.disabled = true;
     });
+
     document.getElementById("btnClearLb").addEventListener("click", () => {
       if (confirm("Smazat žebříček?")) { saveLb([]); renderLb(); }
     });
@@ -533,13 +714,16 @@
     // ===== 11) OVLÁDÁNÍ =====
     document.getElementById("btnCenter").addEventListener("click", () => {
       if (lastFix) map.setView([lastFix.coords.latitude, lastFix.coords.longitude], 17);
-      else map.setView([TARGET.lat, TARGET.lng], 16);
+      else map.setView([centerLat, centerLng], 15);
     });
     document.getElementById("btnReset").addEventListener("click", () => {
       if (!confirm("Resetovat prototyp?")) return;
       state.score = 0; state.savedSeconds = 0;
-      state.closed[TARGET.id] = false; state.answered[TARGET.id] = false;
+      TARGETS.forEach(t => { state.closed[t.id] = false; state.answered[t.id] = false; });
       if (panelOpen) closePanel();
+      runSaved = false;
+      btnSaveRun.textContent = "Uložit běh";
+      btnSaveRun.disabled = false;
       saveState(); alert("Reset hotov.");
     });
 
