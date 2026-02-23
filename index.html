@@ -324,6 +324,7 @@
     let questionOpen = false;
 
     function openQuestion() {
+       map.closePopup();   // ← PŘIDEJ TENTO ŘÁDEK
       if (questionOpen) return;
       if (state.closed[TARGET.id]) return; // už uzavřeno
 
@@ -594,3 +595,4 @@
 </body>
 
 </html>
+
