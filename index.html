@@ -615,11 +615,48 @@
     // ===== 9) GEOLOKACE =====
     function setStatus(t) { elStatus.textContent = t; }
 
-    function startGeo() {
-      if (!("geolocation" in navigator)) { setStatus("Geolokace není podporována."); return; }
-      setStatus("Hledám polohu…");
-      navigator.geolocation.watchPosition(pos => {
+    // Hlídač zamrzlé GPS — pokud nepřijde žádný fix déle než 20s, upozorní hráče
+    let gpsWatchdogTimer = null;
+    let gpsWatchId = null;
+
+    function resetGpsWatchdog() {
+      if (gpsWatchdogTimer) clearTimeout(gpsWatchdogTimer);
+      gpsWatchdogTimer = setTimeout(() => {
+        // GPS zamrzla — zobraz varování s tlačítkem pro restart
+        setStatus("⚠️ GPS nereaguje — klepni sem pro obnovení");
+        elStatus.style.cursor = "pointer";
+        elStatus.style.borderColor = "#f87171";
+        elStatus.onclick = restartGps;
+      }, 20000); // 20 sekund bez fixu
+    }
+
+    function restartGps() {
+      // Zruš staré watche
+      if (gpsWatchId !== null) navigator.geolocation.clearWatch(gpsWatchId);
+      if (gpsWatchdogTimer) clearTimeout(gpsWatchdogTimer);
+
+      // Reset badge stylu
+      elStatus.style.cursor = "";
+      elStatus.style.borderColor = "";
+      elStatus.onclick = null;
+      setStatus("Obnovuji GPS…");
+
+      // Krátká prodleva, pak znovu spusť
+      setTimeout(() => startWatching(), 500);
+    }
+
+    function startWatching() {
+      resetGpsWatchdog();
+
+      gpsWatchId = navigator.geolocation.watchPosition(pos => {
         lastFix = pos;
+        resetGpsWatchdog(); // každý fix prodlouží watchdog
+
+        // Reset badge stylu pokud byl v chybovém stavu
+        elStatus.style.cursor = "";
+        elStatus.style.borderColor = "";
+        elStatus.onclick = null;
+
         const { latitude:la, longitude:lo, accuracy:ac } = pos.coords;
         elAcc.textContent = `${Math.round(ac)} m`;
 
@@ -630,14 +667,10 @@
         else accCircle.setLatLng([la,lo]).setRadius(ac);
 
         const r = calcR(ac);
-
-        // Aktualizuj zónové kruhy všech bodů
         TARGETS.forEach(t => zoneMap[t.id].setRadius(r));
 
-        // Pokud je panel otevřen, nic dalšího neřešíme
         if (panelOpen) return;
 
-        // Zkontroluj vzdálenost ke každému neuzavřenému bodu
         const allClosed = TARGETS.every(t => state.closed[t.id]);
         if (allClosed) { setStatus("Všechny body splněny! 🎉"); return; }
 
@@ -645,14 +678,37 @@
         for (const t of TARGETS) {
           if (state.closed[t.id]) continue;
           const d = dist(la, lo, t.lat, t.lng);
-          if (d <= r) { openPanel(t); return; } // vstup do zóny → okamžitě otevři
+          if (d <= r) { openPanel(t); return; }
           if (d < nearestDist) { nearestDist = d; nearest = t; }
         }
 
         if (nearest) setStatus(`Nejblíž: ${nearest.name} — ${Math.round(nearestDist)} m (tolerance ~${r} m)`);
 
-      }, err => setStatus("GPS chyba: "+err.message),
-         { enableHighAccuracy:true, maximumAge:1000, timeout:30000 });
+      }, err => {
+        if (err.code === 1) setStatus("⚠️ Povolení GPS zamítnuto — povol polohu v nastavení.");
+        else if (err.code === 2) setStatus("⚠️ GPS signál nedostupný — zkus jít ven.");
+        else setStatus("⚠️ GPS timeout — klepni sem pro obnovení");
+        if (err.code !== 1) { // u zamítnutého povolení restart nepomůže
+          elStatus.style.cursor = "pointer";
+          elStatus.style.borderColor = "#f87171";
+          elStatus.onclick = restartGps;
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 30000 });
+    }
+
+    function startGeo() {
+      if (!("geolocation" in navigator)) { setStatus("Geolokace není podporována."); return; }
+      setStatus("Hledám polohu…");
+
+      // Nejprve rychlá cached poloha — "probudí" GPS čip
+      navigator.geolocation.getCurrentPosition(
+        () => {},
+        () => {},
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+      );
+
+      startWatching();
     }
 
     // ===== 10) LEADERBOARD =====
@@ -742,4 +798,3 @@
   </script>
 </body>
 </html>
-
