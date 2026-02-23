@@ -16,15 +16,17 @@
     crossorigin=""
   />
   <style>
-    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background: #0b1220; color: #e5e7eb; }
-    #app { height: 100%; display: grid; grid-template-rows: auto 1fr auto auto; }
-    header { padding: 12px 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; background: #111827; border-bottom: 1px solid #1f2937; }
-    header .left { display:flex; gap:10px; align-items:center; }
+    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background: #0b1220; color: #e5e7eb; overscroll-behavior: none; }
+
+    /* iOS Safari fix: nepoužíváme 1fr pro mapu, ale explicitní výšku přes JS */
+    #app { display: flex; flex-direction: column; height: 100dvh; }
+    header { flex-shrink: 0; padding: 12px 14px; padding-top: max(12px, env(safe-area-inset-top)); display: flex; gap: 10px; align-items: center; justify-content: space-between; background: #111827; border-bottom: 1px solid #1f2937; }
+    header .left { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
     header h1 { font-size: 14px; margin: 0; font-weight: 700; letter-spacing: .2px; }
     header .badge { font-size: 12px; padding: 4px 8px; border: 1px solid #374151; border-radius: 999px; color: #cbd5e1; }
-    #map { width: 100%; min-height: 0; }
+    #map { flex: 1 1 0; width: 100%; min-height: 100px; }
 
-    footer { padding: 10px 14px; background: #111827; border-top: 1px solid #1f2937; display: grid; gap: 8px; }
+    footer { flex-shrink: 0; padding: 10px 14px; padding-bottom: max(10px, env(safe-area-inset-bottom)); background: #111827; border-top: 1px solid #1f2937; display: grid; gap: 8px; }
     .row { display:flex; gap:10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
     .stat { font-size: 13px; color: #cbd5e1; }
     .stat b { color: #e5e7eb; }
@@ -43,6 +45,7 @@
 
     /* Slide-up panel otázky */
     #questionPanel {
+      flex-shrink: 0;
       background: #111827;
       border-top: 2px solid #2563eb;
       max-height: 0;
@@ -50,7 +53,7 @@
       transition: max-height .3s ease;
     }
     #questionPanel.open {
-      max-height: 50vh;
+      max-height: 50dvh;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
@@ -371,6 +374,7 @@
 
       questionPanel.classList.add("open");
       invalidateMap();
+      setTimeout(fixMapHeight, 320);
 
       timerInt = setInterval(() => {
         remaining--;
@@ -387,6 +391,7 @@
       elTimer.classList.remove("urgent");
       if (timerInt) { clearInterval(timerInt); timerInt = null; }
       invalidateMap();
+      setTimeout(fixMapHeight, 320);
     }
 
     function closeAsTimeout() {
@@ -583,6 +588,21 @@
       });
 
     // ===== INIT =====
+    // iOS Safari fix: explicitně nastavíme výšku mapy
+    function fixMapHeight() {
+      const mapEl = document.getElementById("map");
+      const header = document.querySelector("header");
+      const footer = document.querySelector("footer");
+      const panel  = document.getElementById("questionPanel");
+      const avail  = window.innerHeight
+        - header.offsetHeight
+        - footer.offsetHeight
+        - (panel.classList.contains("open") ? panel.offsetHeight : 0);
+      mapEl.style.height = Math.max(avail, 100) + "px";
+      map.invalidateSize();
+    }
+    window.addEventListener("resize", fixMapHeight);
+    fixMapHeight();
     ensureNick();
     renderStats();
     renderMarkerState();
