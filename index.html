@@ -8,7 +8,6 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#111827" />
 
-  <!-- Leaflet -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -16,92 +15,205 @@
     crossorigin=""
   />
   <style>
-    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background: #0b1220; color: #e5e7eb; }
-    #app { height: 100%; display: grid; grid-template-rows: auto 1fr auto; }
-    header { padding: 12px 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; background: #111827; border-bottom: 1px solid #1f2937; }
-    header .left { display:flex; gap:10px; align-items:center; }
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: #0b1220;
+      color: #e5e7eb;
+      overscroll-behavior: none; /* zabrání pull-to-refresh na Androidu */
+    }
+
+    /* ===== LAYOUT — BEZ transform na #app! ===== */
+    /*
+      KLÍČOVÁ OPRAVA: #app NESMÍ mít transform/filter/perspective,
+      jinak iOS Safari "uvězní" position:fixed potomky uvnitř tohoto
+      stacking contextu místo viewportu.
+    */
+    #app {
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      /* žádný transform zde */
+    }
+
+    header {
+      padding: 12px 14px;
+      padding-top: max(12px, env(safe-area-inset-top));
+      display: flex; gap: 10px; align-items: center; justify-content: space-between;
+      background: #111827;
+      border-bottom: 1px solid #1f2937;
+    }
+    header .left { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
     header h1 { font-size: 14px; margin: 0; font-weight: 700; letter-spacing: .2px; }
     header .badge { font-size: 12px; padding: 4px 8px; border: 1px solid #374151; border-radius: 999px; color: #cbd5e1; }
-    #map { height: 100%; width: 100%; position: relative; z-index: 1; }
 
-    footer { padding: 10px 14px; background: #111827; border-top: 1px solid #1f2937; display: grid; gap: 8px; }
+    #map {
+      height: 100%;
+      width: 100%;
+      /* žádný transform — Leaflet si ho řídí sám */
+    }
+
+    footer {
+      padding: 10px 14px;
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+      background: #111827;
+      border-top: 1px solid #1f2937;
+      display: grid; gap: 8px;
+    }
     .row { display:flex; gap:10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
     .stat { font-size: 13px; color: #cbd5e1; }
     .stat b { color: #e5e7eb; }
     button {
       appearance: none; border: 1px solid #374151; background: #0b1220; color: #e5e7eb;
-      border-radius: 10px; padding: 10px 12px; font-weight: 700; font-size: 13px;
+      border-radius: 10px; padding: 10px 14px; font-weight: 700; font-size: 14px;
+      min-height: 44px; /* Apple HIG dotykový cíl */
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
     }
-    button:active { transform: translateY(1px); }
+    button:active { opacity: 0.75; }
     .muted { color: #9ca3af; font-size: 12px; }
     .pill { padding: 4px 8px; border-radius: 999px; border: 1px solid #374151; font-size: 12px; color: #cbd5e1; }
 
-    /* Modal */
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.55);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 14px;
-      z-index: 999999;           /* vyšší než Leaflet */
-      transform: translateZ(0);  /* iOS fix (vynutí vrstvu nad mapou) */
-}
-    .modal {
-      position: relative;
-      z-index: 1000000;          /* nad modal-backdrop */
-      transform: translateZ(0);  /* iOS fix */
-      width: min(520px, 100%);
-      background: #0b1220;
-      border: 1px solid #1f2937;
-      border-radius: 16px;
-      box-shadow: 0 20px 70px rgba(0,0,0,.6);
-      overflow: hidden;
-}
-    .modal header { border-bottom: 1px solid #1f2937; }
-    .modal .content { padding: 14px; display: grid; gap: 10px; }
-    .q { font-size: 16px; font-weight: 800; }
-    .opt { display:flex; gap:10px; align-items:center; padding: 12px; border: 1px solid #374151; border-radius: 12px; cursor: pointer; }
-    .opt input { transform: scale(1.15); }
-    .opt:hover { border-color: #6b7280; }
-    .modal .actions { padding: 14px; border-top: 1px solid #1f2937; display: flex; gap: 10px; justify-content: space-between; align-items: center; }
-    .timer { font-weight: 900; letter-spacing: .5px; }
-    .result { padding: 10px 12px; border-radius: 12px; border: 1px solid #374151; background: rgba(255,255,255,0.03); }
-    .ok { border-color: rgba(34,197,94,.45); }
-    .bad { border-color: rgba(239,68,68,.45); }
-    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas; font-size: 12px; padding: 2px 6px; border: 1px solid #374151; border-radius: 8px; color:#cbd5e1; }
-
-    /* Simple leaderboard drawer */
-    .drawer {
-      position: fixed; right: 0; top: 0; height: 100%; width: min(420px, 92vw);
-      background: #0b1220; border-left: 1px solid #1f2937;
-      transform: translateX(100%); transition: transform .2s ease;
-      display: grid; grid-template-rows: auto 1fr auto;
-      z-index: 20;
-    }
-    .drawer.open { transform: translateX(0); }
-    .drawer .body { padding: 14px; overflow: auto; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px 8px; border-bottom: 1px solid #1f2937; font-size: 13px; text-align: left; }
-    th { color: #cbd5e1; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
-
-    /* ===== Leaflet layer fix — ať mapa nikdy nepřekryje modal ===== */
-
+    /* ===== Leaflet — nesmí přebít modal ===== */
     .leaflet-pane,
     .leaflet-control,
     .leaflet-top,
-    .leaflet-bottom {
-    z-index: 10 !important;
-}
+    .leaflet-bottom { z-index: 10 !important; }
+    .leaflet-popup { z-index: 20 !important; }
 
-.leaflet-popup {
-  z-index: 20 !important;
-}
-    
+    /* =====================================================
+       MODAL — OPRAVA PRO MOBIL
+       =====================================================
+       1) .modal-backdrop je přesunut MIMo #app (před </body>).
+          position:fixed se tak vždy vztahuje ke skutečnému
+          viewportu, nezávisle na jakémkoli transformu v DOMu.
+
+       2) Žádný transform:translateZ(0) na samotném modalu —
+          není potřeba, protože backdrop je přímo v body.
+          (iOS Safari to dříve vyžadovalo jen jako workaround
+           pro "fixed uvnitř transformovaného předka".)
+
+       3) max-height + overflow-y:auto → modal se na malém
+          telefonu scrolluje zevnitř, nevyběhne mimo obrazovku.
+    ===================================================== */
+    .modal-backdrop {
+      position: fixed;       /* vztahuje se k VIEWPORTU, ne k #app */
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      display: none;
+      align-items: flex-end; /* sheet vyjede zdola — přirozené na mobilu */
+      justify-content: center;
+      z-index: 9000;
+      /* padding dole = safe area (notch/home bar) */
+      padding: 0 0 env(safe-area-inset-bottom);
+    }
+    /* Na větších obrazovkách centruj na střed */
+    @media (min-height: 700px) and (min-width: 500px) {
+      .modal-backdrop {
+        align-items: center;
+        padding: 14px;
+      }
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 520px;
+      max-height: 90vh;           /* nepřesáhne obrazovku */
+      overflow-y: auto;           /* vnitřní scroll pokud je obsah velký */
+      -webkit-overflow-scrolling: touch;
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 20px 20px 0 0; /* bottom-sheet styl */
+      box-shadow: 0 -8px 40px rgba(0,0,0,.5);
+      /* žádný transform */
+    }
+    @media (min-height: 700px) and (min-width: 500px) {
+      .modal {
+        border-radius: 16px;
+        box-shadow: 0 20px 70px rgba(0,0,0,.6);
+      }
+    }
+
+    .modal header {
+      padding: 14px;
+      border-bottom: 1px solid #1f2937;
+      display: flex; align-items: center; justify-content: space-between;
+      /* "drag handle" vizuálně naznačí bottom sheet */
+      padding-top: 8px;
+    }
+    /* drag handle proužek */
+    .modal header::before {
+      content: "";
+      display: block;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 8px;
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background: #374151;
+    }
+    .modal header { position: relative; }
+
+    .modal .content { padding: 16px; display: grid; gap: 12px; }
+    .q { font-size: 17px; font-weight: 800; line-height: 1.35; }
+    .opt {
+      display:flex; gap:12px; align-items:center;
+      padding: 14px; /* větší dotykový cíl */
+      border: 1px solid #374151; border-radius: 12px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .opt input { transform: scale(1.25); flex-shrink: 0; }
+    .opt:hover, .opt:focus-within { border-color: #6b7280; }
+    .modal .actions {
+      padding: 14px;
+      border-top: 1px solid #1f2937;
+      display: flex; gap: 10px; justify-content: space-between; align-items: center;
+    }
+    .timer { font-weight: 900; letter-spacing: .5px; font-size: 15px; }
+    .result {
+      padding: 12px 14px; border-radius: 12px;
+      border: 1px solid #374151; background: rgba(255,255,255,0.03);
+      font-size: 14px; line-height: 1.5;
+    }
+    .ok { border-color: rgba(34,197,94,.5); background: rgba(34,197,94,.06); }
+    .bad { border-color: rgba(239,68,68,.5); background: rgba(239,68,68,.06); }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas; font-size: 12px; padding: 2px 6px; border: 1px solid #374151; border-radius: 8px; color:#cbd5e1; }
+
+    /* ===== DRAWER ===== */
+    /*
+      Stejná oprava jako modal: drawer je mimo #app v DOMu,
+      takže position:fixed funguje správně.
+    */
+    .drawer {
+      position: fixed; right: 0; top: 0; height: 100%; width: min(420px, 92vw);
+      background: #0b1220; border-left: 1px solid #1f2937;
+      transform: translateX(100%); transition: transform .25s ease;
+      display: grid; grid-template-rows: auto 1fr auto;
+      z-index: 9500; /* nad modalom, pod potenciálními alertami */
+      will-change: transform; /* vlastní compositing layer — transform je OK zde */
+    }
+    .drawer.open { transform: translateX(0); }
+    .drawer .body { padding: 14px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .drawer footer {
+      padding: 14px;
+      padding-bottom: max(14px, env(safe-area-inset-bottom));
+      border-top: 1px solid #1f2937;
+      display: flex; gap: 10px; justify-content: space-between;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid #1f2937; font-size: 13px; text-align: left; }
+    th { color: #cbd5e1; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
   </style>
 </head>
 <body>
+  <!-- ===== HLAVNÍ LAYOUT ===== -->
   <div id="app">
     <header>
       <div class="left">
@@ -132,12 +244,16 @@
     </footer>
   </div>
 
-  <!-- Question modal -->
+  <!-- =====================================================
+       MODAL — MIMO #app !!!
+       Přímý potomek <body> → position:fixed = viewport,
+       žádný transformovaný předek ho nemůže "uvěznit".
+  ===================================================== -->
   <div id="modalBackdrop" class="modal-backdrop">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <header>
         <div class="left">
-          <h1 id="modalTitle" style="margin:0;">Úkol</h1>
+          <h1 id="modalTitle" style="font-size:14px;margin:0;">Úkol</h1>
           <span class="badge" id="pointNameBadge">—</span>
         </div>
         <span class="badge timer" id="timer">03:00</span>
@@ -161,18 +277,20 @@
     </div>
   </div>
 
-  <!-- Leaderboard drawer -->
+  <!-- =====================================================
+       DRAWER — MIMO #app, stejný důvod jako modal.
+  ===================================================== -->
   <aside id="drawer" class="drawer" aria-hidden="true">
     <header>
       <div class="left">
-        <h1 style="margin:0;">Žebříček (lokálně)</h1>
+        <h1 style="margin:0;font-size:14px;">Žebříček (lokálně)</h1>
         <span class="badge">Prototype</span>
       </div>
       <button id="btnCloseDrawer">Zavřít</button>
     </header>
     <div class="body">
       <div class="muted" style="margin-bottom:10px;">
-        Tohle je jen lokální žebříček v jednom zařízení. Pro “všechny hráče” později připojíme Supabase/Firebase.
+        Tohle je jen lokální žebříček v jednom zařízení. Pro "všechny hráče" později připojíme Supabase/Firebase.
       </div>
       <table>
         <thead>
@@ -181,7 +299,7 @@
         <tbody id="lbBody"></tbody>
       </table>
     </div>
-    <footer style="padding:14px; border-top:1px solid #1f2937; display:flex; gap:10px; justify-content: space-between;">
+    <footer>
       <button id="btnSaveRun">Uložit běh do žebříčku</button>
       <button id="btnClearLb">Smazat žebříček</button>
     </footer>
@@ -195,15 +313,12 @@
   ></script>
 
   <script>
-    // ===== 1) KONFIGURACE BODU (doplníš přesné souřadnice) =====
-    // Sem dej souřadnice "Za domovem 558, 460 08 Liberec".
-    // Jak je získat: Mapy.cz → detail adresy → GPS → zkopírovat.
+    // ===== 1) KONFIGURACE BODU =====
     const TARGET = {
       id: "za-domovem-558",
       name: "Za Domovem 558",
-      // TODO: VYMĚŇ za přesné lat/lng
-      lat: 50.7394476, // placeholder (souřadnice z ulice Za Domovem – jiné číslo domu)
-      lng: 15.0092092, // placeholder
+      lat: 50.7394476,
+      lng: 15.0092092,
       points: 100,
       question: {
         text: "Kolik...?",
@@ -214,58 +329,54 @@
 
     // ===== 2) STAV HRY =====
     const LS_KEY = "hanychov_hunt_state_v1";
-    const LS_LB = "hanychov_hunt_lb_v1";
+    const LS_LB  = "hanychov_hunt_lb_v1";
 
     const state = loadState() ?? {
       nickname: "",
       score: 0,
       savedSeconds: 0,
-      closed: { [TARGET.id]: false },
+      closed:   { [TARGET.id]: false },
       answered: { [TARGET.id]: false },
     };
 
     // ===== 3) UI ELEMENTY =====
-    const elStatus = document.getElementById("status");
-    const elScore = document.getElementById("score");
-    const elSaved = document.getElementById("saved");
-    const elAcc = document.getElementById("acc");
-    const elNickPill = document.getElementById("nickPill");
+    const elStatus       = document.getElementById("status");
+    const elScore        = document.getElementById("score");
+    const elSaved        = document.getElementById("saved");
+    const elAcc          = document.getElementById("acc");
+    const elNickPill     = document.getElementById("nickPill");
 
-    const modalBackdrop = document.getElementById("modalBackdrop");
+    const modalBackdrop  = document.getElementById("modalBackdrop");
     const pointNameBadge = document.getElementById("pointNameBadge");
-    const questionText = document.getElementById("questionText");
-    const optA = document.getElementById("optA");
-    const optB = document.getElementById("optB");
-    const optC = document.getElementById("optC");
-    const optD = document.getElementById("optD");
-    const resultBox = document.getElementById("resultBox");
-    const btnSubmit = document.getElementById("btnSubmit");
-    const btnClose = document.getElementById("btnClose");
-    const elTimer = document.getElementById("timer");
+    const questionText   = document.getElementById("questionText");
+    const optA           = document.getElementById("optA");
+    const optB           = document.getElementById("optB");
+    const optC           = document.getElementById("optC");
+    const optD           = document.getElementById("optD");
+    const resultBox      = document.getElementById("resultBox");
+    const btnSubmit      = document.getElementById("btnSubmit");
+    const btnClose       = document.getElementById("btnClose");
+    const elTimer        = document.getElementById("timer");
 
-    const drawer = document.getElementById("drawer");
-    const lbBody = document.getElementById("lbBody");
+    const drawer         = document.getElementById("drawer");
+    const lbBody         = document.getElementById("lbBody");
 
     // ===== 4) MAPA =====
     const map = L.map("map", { zoomControl: true }).setView([TARGET.lat, TARGET.lng], 16);
 
-    // Turistický podklad: OpenTopoMap (dobré na chůzi)
-    // Pozn.: je to veřejná služba – pro produkci se řeší limity/hosting dlaždic.
     L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
       maxZoom: 17,
       attribution: 'Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap'
     }).addTo(map);
 
-    // Cíl
-    const targetMarker = L.marker([TARGET.lat, TARGET.lng]).addTo(map).bindPopup(`<b>${TARGET.name}</b><br/>${TARGET.points} bodů`);
+    const targetMarker = L.marker([TARGET.lat, TARGET.lng]).addTo(map)
+      .bindPopup(`<b>${TARGET.name}</b><br/>${TARGET.points} bodů`);
 
-    // Kruh tolerance (dynamicky)
     let zoneCircle = L.circle([TARGET.lat, TARGET.lng], { radius: 10, weight: 2 }).addTo(map);
 
-    // Poloha uživatele
     let userMarker = null;
-    let accCircle = null;
-    let lastFix = null;
+    let accCircle  = null;
+    let lastFix    = null;
 
     // ===== 5) HELPERY =====
     function loadState() {
@@ -279,25 +390,21 @@
     function formatMMSS(totalSeconds) {
       const m = Math.floor(totalSeconds / 60);
       const s = totalSeconds % 60;
-      return `${m}:${String(s).padStart(2,"0")}`;
+      return `${m}:${String(s).padStart(2, "0")}`;
     }
     function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
 
-    // Haversine distance (m)
     function distMeters(lat1, lon1, lat2, lon2) {
       const R = 6371000;
-      const toRad = (d) => d * Math.PI / 180;
+      const toRad = d => d * Math.PI / 180;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
       const a =
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-        Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
+        Math.sin(dLat/2)**2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    // Adaptivní tolerance: min 10m, jinak cca 1.2× accuracy, max třeba 50m
     function calcRadius(accuracyMeters) {
       if (!accuracyMeters || !isFinite(accuracyMeters)) return 25;
       return clamp(Math.round(accuracyMeters * 1.2), 10, 50);
@@ -307,19 +414,14 @@
     function ensureNickname() {
       if (state.nickname && state.nickname.trim().length >= 2) return;
       const nick = prompt("Zadej přezdívku (min. 2 znaky):", state.nickname || "");
-      if (nick && nick.trim().length >= 2) {
-        state.nickname = nick.trim();
-        saveState();
-      } else {
-        state.nickname = "Hráč";
-        saveState();
-      }
+      state.nickname = (nick && nick.trim().length >= 2) ? nick.trim() : "Hráč";
+      saveState();
     }
 
     // ===== 7) RENDER =====
     function renderStats() {
-      elScore.textContent = String(state.score);
-      elSaved.textContent = formatMMSS(state.savedSeconds);
+      elScore.textContent   = String(state.score);
+      elSaved.textContent   = formatMMSS(state.savedSeconds);
       elNickPill.textContent = `Přezdívka: ${state.nickname || "—"}`;
     }
 
@@ -335,44 +437,44 @@
     }
 
     // ===== 8) OTÁZKA / TIMER =====
-    let timerInt = null;
-    let remaining = 180; // seconds
+    let timerInt     = null;
+    let remaining    = 180;
     let questionOpen = false;
 
     function openQuestion() {
-       map.closePopup();   // ← PŘIDEJ TENTO ŘÁDEK
+      map.closePopup();
       if (questionOpen) return;
-      if (state.closed[TARGET.id]) return; // už uzavřeno
+      if (state.closed[TARGET.id]) return;
 
       questionOpen = true;
-      remaining = 180;
+      remaining    = 180;
 
-      // reset UI
       resultBox.style.display = "none";
-      resultBox.className = "result";
-      resultBox.textContent = "";
-      btnSubmit.disabled = false;
-
-      // reset radios
+      resultBox.className     = "result";
+      resultBox.textContent   = "";
+      btnSubmit.disabled      = false;
       document.querySelectorAll('input[name="ans"]').forEach(r => r.checked = false);
 
-      // fill content
       pointNameBadge.textContent = TARGET.name;
-      questionText.textContent = TARGET.question.text;
-      optA.textContent = TARGET.question.options.a;
-      optB.textContent = TARGET.question.options.b;
-      optC.textContent = TARGET.question.options.c;
-      optD.textContent = TARGET.question.options.d;
-      elTimer.textContent = "03:00";
+      questionText.textContent   = TARGET.question.text;
+      optA.textContent           = TARGET.question.options.a;
+      optB.textContent           = TARGET.question.options.b;
+      optC.textContent           = TARGET.question.options.c;
+      optD.textContent           = TARGET.question.options.d;
+      elTimer.textContent        = "03:00";
 
+      // Zobrazit modal — display:flex spustí CSS centrování/bottom-sheet
       modalBackdrop.style.display = "flex";
+
+      // Scroll na vrch modalu po otevření (pro případ velmi malé obrazovky)
+      requestAnimationFrame(() => {
+        document.querySelector(".modal").scrollTop = 0;
+      });
 
       timerInt = setInterval(() => {
         remaining -= 1;
         elTimer.textContent = formatMMSS(remaining);
-        if (remaining <= 0) {
-          closeAsTimeout();
-        }
+        if (remaining <= 0) closeAsTimeout();
       }, 1000);
     }
 
@@ -387,69 +489,51 @@
       if (timerInt) clearInterval(timerInt);
       timerInt = null;
 
-      // timeout => 0 bodů + uzavřít bod
-      state.closed[TARGET.id] = true;
+      state.closed[TARGET.id]   = true;
       state.answered[TARGET.id] = false;
 
       resultBox.style.display = "block";
       resultBox.classList.add("bad");
       resultBox.textContent = `Čas vypršel. Získáváš 0 bodů. Správná odpověď je A) ${TARGET.question.options[TARGET.question.correct]}.`;
-
       btnSubmit.disabled = true;
 
-      // necháme modal ještě chvíli otevřený, aby to bylo čitelné
-      setTimeout(() => {
-        closeModal();
-        saveState();
-      }, 1200);
+      setTimeout(() => { closeModal(); saveState(); }, 1200);
     }
 
     btnSubmit.addEventListener("click", () => {
       if (btnSubmit.disabled) return;
-
       const chosen = document.querySelector('input[name="ans"]:checked')?.value;
-      if (!chosen) {
-        alert("Vyber jednu odpověď.");
-        return;
-      }
+      if (!chosen) { alert("Vyber jednu odpověď."); return; }
 
       if (timerInt) clearInterval(timerInt);
       timerInt = null;
 
       const isCorrect = chosen === TARGET.question.correct;
-
-      // bodování
       if (isCorrect) {
-        state.score += TARGET.points;
-        // ušetřený čas = zbylý čas do 3 minut
+        state.score        += TARGET.points;
         state.savedSeconds += remaining;
         state.answered[TARGET.id] = true;
       } else {
         state.answered[TARGET.id] = false;
       }
-
-      // uzavřít bod po odpovědi
       state.closed[TARGET.id] = true;
 
       resultBox.style.display = "block";
-      resultBox.classList.toggle("ok", isCorrect);
+      resultBox.classList.toggle("ok",  isCorrect);
       resultBox.classList.toggle("bad", !isCorrect);
       resultBox.textContent =
         (isCorrect ? `Správně! +${TARGET.points} bodů. ` : `Špatně. +0 bodů. `) +
         `Správná odpověď je A) ${TARGET.question.options[TARGET.question.correct]}.`;
-
       btnSubmit.disabled = true;
 
-      setTimeout(() => {
-        closeModal();
-        saveState();
-      }, 1200);
+      setTimeout(() => { closeModal(); saveState(); }, 1200);
     });
 
-    btnClose.addEventListener("click", () => {
-      // pravidlo: otázka je k dispozici 3 min — když zavře, pořád běží? (MVP: zavřením ji ukončíme)
-      // Pokud chceš přesně "běží i po zavření", uděláme později "miniplayer timer".
-      closeModal();
+    btnClose.addEventListener("click", closeModal);
+
+    // Zavřít klepnutím na backdrop (mimo modal okno)
+    modalBackdrop.addEventListener("click", (e) => {
+      if (e.target === modalBackdrop) closeModal();
     });
 
     // ===== 9) GEOLOKACE =====
@@ -460,25 +544,20 @@
         setStatus("Geolokace není podporována.");
         return;
       }
-
       setStatus("Hledám polohu…");
       navigator.geolocation.watchPosition(
         (pos) => {
           lastFix = pos;
           const { latitude, longitude, accuracy } = pos.coords;
-
           elAcc.textContent = `${Math.round(accuracy)} m`;
 
-          // vykresli polohu
           const latlng = [latitude, longitude];
-
           if (!userMarker) {
             userMarker = L.marker(latlng).addTo(map).bindPopup("Ty");
           } else {
             userMarker.setLatLng(latlng);
           }
 
-          // kruh přesnosti
           if (!accCircle) {
             accCircle = L.circle(latlng, { radius: accuracy, weight: 1 }).addTo(map);
           } else {
@@ -486,7 +565,6 @@
             accCircle.setRadius(accuracy);
           }
 
-          // adaptivní zóna pro odemčení
           const radius = calcRadius(accuracy);
           zoneCircle.setRadius(radius);
 
@@ -504,30 +582,20 @@
             setStatus(`Jdi blíž: ${Math.round(d)} m (tolerance ~${radius} m)`);
           }
         },
-        (err) => {
-          setStatus("GPS chyba: " + err.message);
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 1000,
-          timeout: 15000
-        }
+        (err) => { setStatus("GPS chyba: " + err.message); },
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 }
       );
     }
 
-    // ===== 10) LEADERBOARD (LOKÁLNÍ PROTOTYPE) =====
+    // ===== 10) LEADERBOARD =====
     function loadLb() {
       try { return JSON.parse(localStorage.getItem(LS_LB)) ?? []; } catch { return []; }
     }
-    function saveLb(entries) {
-      localStorage.setItem(LS_LB, JSON.stringify(entries));
-    }
+    function saveLb(entries) { localStorage.setItem(LS_LB, JSON.stringify(entries)); }
+
     function renderLb() {
       const entries = loadLb();
-
-      // řazení: 1) body desc, 2) ušetřený čas desc
-      entries.sort((a,b) => (b.score - a.score) || (b.savedSeconds - a.savedSeconds));
-
+      entries.sort((a, b) => (b.score - a.score) || (b.savedSeconds - a.savedSeconds));
       lbBody.innerHTML = entries.map((e, i) => `
         <tr>
           <td>${i+1}</td>
@@ -539,56 +607,40 @@
     }
 
     function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, (c) => ({
-        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-      }[c]));
+      return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
     }
 
     document.getElementById("btnLeaderboard").addEventListener("click", () => {
       drawer.classList.add("open");
-      drawer.setAttribute("aria-hidden","false");
+      drawer.setAttribute("aria-hidden", "false");
       renderLb();
     });
     document.getElementById("btnCloseDrawer").addEventListener("click", () => {
       drawer.classList.remove("open");
-      drawer.setAttribute("aria-hidden","true");
+      drawer.setAttribute("aria-hidden", "true");
     });
-
     document.getElementById("btnSaveRun").addEventListener("click", () => {
       ensureNickname();
       const entries = loadLb();
-      entries.push({
-        nickname: state.nickname,
-        score: state.score,
-        savedSeconds: state.savedSeconds,
-        at: Date.now()
-      });
+      entries.push({ nickname: state.nickname, score: state.score, savedSeconds: state.savedSeconds, at: Date.now() });
       saveLb(entries);
       renderLb();
       alert("Uloženo do lokálního žebříčku.");
     });
-
     document.getElementById("btnClearLb").addEventListener("click", () => {
-      if (confirm("Smazat lokální žebříček?")) {
-        saveLb([]);
-        renderLb();
-      }
+      if (confirm("Smazat lokální žebříček?")) { saveLb([]); renderLb(); }
     });
 
     // ===== 11) OVLÁDÁNÍ =====
     document.getElementById("btnCenter").addEventListener("click", () => {
-      if (lastFix) {
-        map.setView([lastFix.coords.latitude, lastFix.coords.longitude], 17);
-      } else {
-        map.setView([TARGET.lat, TARGET.lng], 16);
-      }
+      if (lastFix) map.setView([lastFix.coords.latitude, lastFix.coords.longitude], 17);
+      else map.setView([TARGET.lat, TARGET.lng], 16);
     });
-
     document.getElementById("btnReset").addEventListener("click", () => {
       if (!confirm("Resetovat prototyp? (skóre + uzavření bodu)")) return;
       state.score = 0;
       state.savedSeconds = 0;
-      state.closed[TARGET.id] = false;
+      state.closed[TARGET.id]   = false;
       state.answered[TARGET.id] = false;
       saveState();
       alert("Reset hotov.");
@@ -601,7 +653,7 @@
       });
     }
 
-    // Init
+    // ===== INIT =====
     ensureNickname();
     renderStats();
     renderMarkerState();
@@ -609,8 +661,4 @@
     saveState();
   </script>
 </body>
-
 </html>
-
-
-
