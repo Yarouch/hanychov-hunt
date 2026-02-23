@@ -314,14 +314,14 @@
   <aside id="drawer" class="drawer" aria-hidden="true">
     <div class="drawer-header">
       <div class="left">
-        <h1 style="font-size:14px;margin:0;">Žebříček (lokálně)</h1>
-        <span class="badge">Prototype</span>
+        <h1 style="font-size:14px;margin:0;">Žebříček 🌐</h1>
+        <span class="badge" id="lbModeBadge">Multiplayer</span>
       </div>
       <button id="btnCloseDrawer">Zavřít</button>
     </div>
     <div class="drawer-body">
       <p class="muted" style="margin:0 0 10px;">
-        Lokální žebříček – pro všechny hráče přidáme Supabase/Firebase.
+        Multiplayer žebříček přes Supabase. Po nastavení URL a klíče se výsledky sdílejí mezi všemi hráči.
       </p>
       <table>
         <thead><tr><th>#</th><th>Přezdívka</th><th>Body</th><th>Ušetř. čas</th><th>Datum</th></tr></thead>
@@ -335,6 +335,7 @@
   </aside>
 
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
@@ -351,8 +352,8 @@
         lng: 15.0092092,
         points: 100,
         question: {
-          text: "Kolik...?",
-          options: { a: "1", b: "2", c: "3", d: "4" },
+          text: "Jak se jmenuje ulice, na které stojí dům č.p. 558?",
+          options: { a: "Za Domovem", b: "Na Kopci", c: "Polní", d: "Ke Hřišti" },
           correct: "a"
         }
       },
@@ -645,9 +646,10 @@
       gpsWatchId = navigator.geolocation.watchPosition(pos => {
         lastFix = pos;
 
-        // První fix — od teď spouštíme watchdog
+        // První fix
         if (!gpsFirstFix) {
           gpsFirstFix = true;
+          setStatus("📍 GPS nalezena — hledám body…");
         }
         resetGpsWatchdog();
 
@@ -681,18 +683,32 @@
         }
 
         if (nearest) setStatus(`Nejblíž: ${nearest.name} — ${Math.round(nearestDist)} m (tolerance ~${r} m)`);
+        else setStatus("📍 GPS aktivní");
 
       }, err => {
+        // Kód 3 = timeout jednoho updatu — u watchPosition je to normální jev,
+        // nezobrazujeme chybu, jen restartujeme watchdog.
+        if (err.code === 3) {
+          if (gpsFirstFix) {
+            // Máme už fix — tiše ignorujeme, watchdog se postará pokud GPS zmizí
+            return;
+          }
+          // Před prvním fixem timeout — zkusíme znovu s nižší přesností
+          setStatus("⏳ GPS trvá déle… zkouším nižší přesnost");
+          navigator.geolocation.clearWatch(gpsWatchId);
+          gpsWatchId = navigator.geolocation.watchPosition(
+            pos => { startWatching._cb && startWatching._cb(pos); },
+            () => {},
+            { enableHighAccuracy: false, maximumAge: 10000, timeout: 20000 }
+          );
+          return;
+        }
         if (err.code === 1) setStatus("⚠️ Povolení GPS zamítnuto — povol polohu v nastavení.");
         else if (err.code === 2) setStatus("⚠️ GPS signál nedostupný — zkus jít ven.");
-        else {
-          setStatus("⚠️ GPS timeout — klepni sem pro obnovení");
-          elStatus.style.cursor = "pointer";
-          elStatus.style.borderColor = "#f87171";
-          elStatus.onclick = restartGps;
-        }
       },
-      { enableHighAccuracy: true, maximumAge: 3000, timeout: 30000 });
+      // timeout: Infinity = watchPosition nikdy sám od sebe nevyhodí timeout chybu.
+      // O výpadek se stará náš vlastní watchdog (20 s bez updatu → upozornění).
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: Infinity });
     }
 
     function startGeo() {
@@ -701,9 +717,28 @@
       startWatching();
     }
 
-    // ===== 10) LEADERBOARD =====
-    function loadLb() { try { return JSON.parse(localStorage.getItem(LS_LB))??[]; } catch { return []; } }
-    function saveLb(a) { localStorage.setItem(LS_LB, JSON.stringify(a)); }
+    // ===== 10) LEADERBOARD — Supabase multiplayer =====
+    // ⚙️  KONFIGURACE: Vyplň URL a anon key ze svého Supabase projektu
+    //     https://app.supabase.com → Settings → API
+    const SUPABASE_URL  = "https://TVUJ-PROJEKT.supabase.co";
+    const SUPABASE_ANON = "TVUJ-ANON-KEY";
+
+    // SQL pro vytvoření tabulky (spusť jednou v Supabase SQL editoru):
+    // CREATE TABLE leaderboard (
+    //   id bigint generated always as identity primary key,
+    //   nickname text not null,
+    //   score integer not null default 0,
+    //   saved_seconds integer not null default 0,
+    //   created_at timestamptz default now()
+    // );
+    // ALTER TABLE leaderboard ENABLE ROW LEVEL SECURITY;
+    // CREATE POLICY "Anyone can read"  ON leaderboard FOR SELECT USING (true);
+    // CREATE POLICY "Anyone can insert" ON leaderboard FOR INSERT WITH CHECK (true);
+
+    let sb = null;
+    try {
+      sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    } catch(e) { console.warn("Supabase init failed:", e); }
 
     function fmtDate(ts) {
       if (!ts) return "—";
@@ -711,8 +746,53 @@
       return `${d.getDate()}.${d.getMonth()+1}. ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
     }
 
-    function renderLb() {
-      const entries = loadLb().sort((a,b) => (b.score - a.score) || (b.savedSeconds - a.savedSeconds));
+    // Lokální fallback cache
+    function loadLbLocal() { try { return JSON.parse(localStorage.getItem(LS_LB))??[]; } catch { return []; } }
+    function saveLbLocal(a) { localStorage.setItem(LS_LB, JSON.stringify(a)); }
+
+    async function renderLb() {
+      lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Načítám…</td></tr>`;
+      let entries = [];
+      const isConfigured = SUPABASE_URL !== "https://TVUJ-PROJEKT.supabase.co";
+
+      if (sb && isConfigured) {
+        try {
+          const { data, error } = await sb
+            .from("leaderboard")
+            .select("nickname,score,saved_seconds,created_at")
+            .order("score", { ascending: false })
+            .order("saved_seconds", { ascending: false })
+            .limit(50);
+          if (error) throw error;
+          entries = data.map(x => ({
+            nickname: x.nickname,
+            score: x.score,
+            savedSeconds: x.saved_seconds,
+            at: x.created_at
+          }));
+        } catch(e) {
+          console.warn("Supabase fetch failed, falling back to local:", e);
+          entries = loadLbLocal();
+        }
+      } else {
+        // Supabase není nakonfigurováno — zobraz lokální + upozornění
+        entries = loadLbLocal();
+        if (!isConfigured) {
+          lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty" style="color:#fbbf24">
+            ⚙️ Nastav Supabase URL a klíč v kódu pro multiplayer žebříček.<br/>
+            <span style="color:#6b7280;font-size:11px">Zatím zobrazuji lokální záznamy.</span>
+          </td></tr>`;
+          if (entries.length === 0) return;
+          lbBody.innerHTML += entries
+            .sort((a,b) => (b.score - a.score)||(b.savedSeconds - a.savedSeconds))
+            .map((x,i) => `<tr>
+              <td>${i+1}</td><td>${esc(x.nickname)}</td>
+              <td><b>${x.score}</b></td><td>${fmt(x.savedSeconds)}</td>
+              <td style="color:#6b7280">${fmtDate(x.at)}</td>
+            </tr>`).join("");
+          return;
+        }
+      }
 
       if (entries.length === 0) {
         lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Žebříček je zatím prázdný.<br/>Dohraj hru a klikni „Uložit běh".</td></tr>`;
@@ -720,8 +800,8 @@
       }
 
       lbBody.innerHTML = entries.map((x, i) => `
-        <tr>
-          <td>${i+1}</td>
+        <tr${i === 0 ? ' style="color:#fbbf24"' : ''}>
+          <td>${i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i+1}</td>
           <td>${esc(x.nickname)}</td>
           <td><b>${x.score}</b></td>
           <td>${fmt(x.savedSeconds)}</td>
@@ -740,21 +820,48 @@
       drawer.classList.remove("open"); drawer.setAttribute("aria-hidden","true");
     });
 
-    btnSaveRun.addEventListener("click", () => {
-      if (runSaved) return; // zabrání duplicitám
+    btnSaveRun.addEventListener("click", async () => {
+      if (runSaved) return;
       ensureNick();
-      if (!state.nickname || state.nickname.trim().length < 2) return; // overlay otevřen, čekáme
-      const a = loadLb();
-      a.push({ nickname: state.nickname, score: state.score, savedSeconds: state.savedSeconds, at: Date.now() });
-      saveLb(a);
+      if (!state.nickname || state.nickname.trim().length < 2) return;
+
+      const entry = {
+        nickname: state.nickname,
+        score: state.score,
+        savedSeconds: state.savedSeconds,
+        at: Date.now()
+      };
+
+      // Vždy ulož lokálně jako zálohu
+      const local = loadLbLocal();
+      local.push(entry);
+      saveLbLocal(local);
+
+      const isConfigured = SUPABASE_URL !== "https://TVUJ-PROJEKT.supabase.co";
+      if (sb && isConfigured) {
+        try {
+          const { error } = await sb.from("leaderboard").insert({
+            nickname: state.nickname,
+            score: state.score,
+            saved_seconds: state.savedSeconds
+          });
+          if (error) throw error;
+          btnSaveRun.textContent = "✓ Uloženo online";
+        } catch(e) {
+          console.warn("Supabase insert failed:", e);
+          btnSaveRun.textContent = "✓ Uloženo lokálně";
+        }
+      } else {
+        btnSaveRun.textContent = "✓ Uloženo lokálně";
+      }
+
       renderLb();
       runSaved = true;
-      btnSaveRun.textContent = "✓ Uloženo";
       btnSaveRun.disabled = true;
     });
 
     document.getElementById("btnClearLb").addEventListener("click", () => {
-      if (confirm("Smazat žebříček?")) { saveLb([]); renderLb(); }
+      if (confirm("Smazat lokální záznamy?")) { saveLbLocal([]); renderLb(); }
     });
 
     // ===== 11) OVLÁDÁNÍ =====
