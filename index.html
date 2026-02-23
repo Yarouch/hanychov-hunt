@@ -38,10 +38,18 @@
 
     /* Modal */
     .modal-backdrop {
-      position: fixed; inset: 0; background: rgba(0,0,0,.55);
-      display: none; align-items: center; justify-content: center; padding: 14px;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      z-index: 99999; /* <-- důležité */
     }
     .modal {
+      position: relative;   /* ← PŘIDEJ */
+      z-index: 100000;      /* ← PŘIDEJ */
       width: min(520px, 100%);
       background: #0b1220;
       border: 1px solid #1f2937;
@@ -584,4 +592,5 @@
     saveState();
   </script>
 </body>
+
 </html>
