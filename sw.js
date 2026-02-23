@@ -1,40 +1,52 @@
-const CACHE = "hanychov-hunt-v3";
-const ASSETS = ["./", "./index.html", "./manifest.json"];
+const CACHE = "hh-cache-v1";
+const ASSETS = [
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./icon-192.png",
+  "./icon-512.png",
+];
 
-self.addEventListener("install", (e) => {
-  // Okamžitě přejdi na novou verzi bez čekání na zavření starých tabů
-  self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
-});
-
-self.addEventListener("activate", (e) => {
-  // Převezmi kontrolu nad všemi stránkami okamžitě
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.map(k => k !== CACHE ? caches.delete(k) : null)))
-      .then(() => self.clients.claim())
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE).then((cache) => cache.addAll(ASSETS))
   );
+  self.skipWaiting();
 });
 
-self.addEventListener("fetch", (e) => {
-  const url = new URL(e.request.url);
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.map(k => k !== CACHE ? caches.delete(k) : null))
+    )
+  );
+  self.clients.claim();
+});
 
-  // HTML soubory — vždy network-first (aby se vždy načetla nová verze)
-  if (e.request.mode === "navigate" || url.pathname.endsWith(".html")) {
-    e.respondWith(
-      fetch(e.request)
-        .then(res => {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-          return res;
-        })
-        .catch(() => caches.match(e.request))
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  const url = new URL(req.url);
+
+  // Network-first for HTML
+  if (req.mode === "navigate" || (req.headers.get("accept") || "").includes("text/html")) {
+    event.respondWith(
+      fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(cache => cache.put(req, copy));
+        return res;
+      }).catch(() => caches.match(req).then(r => r || caches.match("./index.html")))
     );
     return;
   }
 
-  // Ostatní assety — cache-first
-  e.respondWith(
-    caches.match(e.request).then((r) => r || fetch(e.request))
+  // Cache-first for other assets
+  event.respondWith(
+    caches.match(req).then(cached =>
+      cached || fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(cache => cache.put(req, copy));
+        return res;
+      })
+    )
   );
 });
