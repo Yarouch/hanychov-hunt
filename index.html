@@ -363,9 +363,48 @@
     flex: 1 1 auto;      /* vyplní řádek */
   }
 
-  #btnCenter{ order: 4; }
-  #btnLb{ order: 5; }
-  #btnReset{ order: 6; }
+  .btncapsule{ order: 4; }
+
+/* ===== Button capsule (game UI) ===== */
+.btncapsule{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px;
+  border-radius:999px;
+  background:rgba(2,6,23,.55);
+  border:1px solid rgba(148,163,184,.18);
+}
+
+.iconbtn{
+  appearance:none;
+  border:none;
+  width:44px;
+  height:44px;
+  border-radius:14px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  user-select:none;
+
+  background:rgba(148,163,184,.10);
+  border:1px solid rgba(148,163,184,.25);
+  color:var(--text);
+
+  transition: transform .08s ease, background .15s ease;
+}
+.iconbtn:active{ transform: scale(.98); }
+
+.iconbtn:hover{
+  background:rgba(148,163,184,.14);
+}
+
+.iconbtn.danger{
+  background:rgba(239,68,68,.12);
+  border:1px solid rgba(239,68,68,.35);
+}
+  
 </style>
   
 </head>
@@ -388,9 +427,11 @@
         <span>Čas: <b id="saved">0</b>s</span>
       </div>
 
-      <button class="btn secondary" id="btnCenter" title="Centrovat na mě">📍</button>
-      <button class="btn secondary" id="btnLb" title="Leaderboard">🏆</button>
-      <button class="btn danger" id="btnReset" title="Reset">⟲</button>
+      <div class="btncapsule" role="group" aria-label="Ovládání">
+      <button class="iconbtn" id="btnCenter" title="Centrovat na mě" aria-label="Centrovat">📍</button>
+      <button class="iconbtn" id="btnLb" title="Leaderboard" aria-label="Leaderboard">🏆</button>
+      <button class="iconbtn danger" id="btnReset" title="Reset" aria-label="Reset">⟲</button>
+      </div>
     </header>
 
     <main>
@@ -574,8 +615,10 @@
     // ===== 3) UI refs =====
     const elScore = document.getElementById("score");
     const elSaved = document.getElementById("saved");
+    const statusBar = document.getElementById("statusBar"); // ⭐ NOVÉ
     const elStatus = document.getElementById("statusMsg");
     const elAcc = document.getElementById("accVal");
+    
     const btnCenter = document.getElementById("btnCenter");
     const btnReset = document.getElementById("btnReset");
     const btnLb = document.getElementById("btnLb");
@@ -758,17 +801,44 @@
     // ===== 10) GEOLOKACE =====
     function setStatus(t) { elStatus.textContent = t; }
 
+    function statusErrorOn() {
+      if (!statusBar) return;
+      statusBar.style.borderColor = "#ef4444";
+      statusBar.style.boxShadow = "0 0 0 2px rgba(239,68,68,.35)";
+      }
+
+    function statusErrorOff() {
+      if (!statusBar) return;
+      statusBar.style.borderColor = "";
+      statusBar.style.boxShadow = "";
+      }
+
     let gpsWatchdogTimer = null, gpsWatchId = null, gpsFirstFix = false;
+    let lastFixAt = 0; // ms timestamp posledního platného fixu
 
     function resetGpsWatchdog() {
-      if (gpsWatchdogTimer) clearTimeout(gpsWatchdogTimer);
-      gpsWatchdogTimer = setTimeout(() => {
-        setStatus(gpsFirstFix ? "⚠️ GPS nereaguje — klepni sem pro obnovení" : "⏳ Čekám na GPS… trvá to déle — klepni sem pro obnovení");
-        elStatus.style.cursor = "pointer";
-        elStatus.style.borderColor = "#f87171";
-        elStatus.onclick = restartGps;
-      }, 20000);
+    if (gpsWatchdogTimer) clearTimeout(gpsWatchdogTimer);
+
+  gpsWatchdogTimer = setTimeout(() => {
+    const age = lastFixAt ? (Date.now() - lastFixAt) : Infinity;
+
+    // Pokud už máme fix a poslední fix není "starý", nic nehlaš
+    // (Safari občas jen vynechá pár updateů)
+    if (gpsFirstFix && age < 30000) { // 30s tolerance
+      resetGpsWatchdog();
+      return;
     }
+
+    // Teprve teď hlásíme problém
+    setStatus(gpsFirstFix
+      ? "⚠️ GPS chvíli neaktualizuje — klepni sem pro obnovení"
+      : "⏳ Čekám na GPS… trvá to déle — klepni sem pro obnovení"
+    );
+
+    elStatus.style.cursor = "pointer";
+    elStatus.onclick = restartGps;
+  }, 20000);
+}
 
     function restartGps() {
       if (gpsWatchId !== null) navigator.geolocation.clearWatch(gpsWatchId);
@@ -785,6 +855,7 @@
     function startWatching() {
       gpsWatchId = navigator.geolocation.watchPosition(pos => {
         lastFix = pos;
+        lastFixAt = Date.now();
         if (!gpsFirstFix) { gpsFirstFix = true; setStatus("📍 GPS nalezena — hledám body…"); }
         resetGpsWatchdog();
         elStatus.style.cursor = ""; elStatus.style.borderColor = ""; elStatus.onclick = null;
@@ -1011,6 +1082,7 @@ helpBackdrop.addEventListener("click", (e) => {
   </script>
 </body>
 </html>
+
 
 
 
