@@ -805,11 +805,57 @@
       renderLb();
     });
 
+    // ===== HELP / NÁVOD =====
+const LS_HELP = "hh_help_v1";
+const helpBackdrop = document.getElementById("helpBackdrop");
+const btnHelpClose  = document.getElementById("btnHelpClose");
+const btnHelpStart  = document.getElementById("btnHelpStart");
+const helpDontShow  = document.getElementById("helpDontShow");
+
+function openHelp() {
+  // zavři případné otevřené Leaflet popupy (aby nelezly přes modal)
+  try { map.closePopup(); } catch(e) {}
+
+  helpBackdrop.classList.add("show");
+  // když je otevřený help, nescrolluj stránku (jen modal)
+  document.body.style.overflow = "hidden";
+}
+
+function closeHelp() {
+  helpBackdrop.classList.remove("show");
+  document.body.style.overflow = "hidden"; // ty máš body overflow:hidden, necháváme konzistentní
+}
+
+function maybeShowHelpOnStart() {
+  const flag = localStorage.getItem(LS_HELP);
+  if (flag === "hide") return;
+  openHelp();
+}
+
+btnHelpClose.addEventListener("click", () => {
+  if (helpDontShow.checked) localStorage.setItem(LS_HELP, "hide");
+  closeHelp();
+});
+
+btnHelpStart.addEventListener("click", () => {
+  if (helpDontShow.checked) localStorage.setItem(LS_HELP, "hide");
+  closeHelp();
+});
+
+// klik mimo okno zavře (volitelné)
+helpBackdrop.addEventListener("click", (e) => {
+  if (e.target === helpBackdrop) {
+    if (helpDontShow.checked) localStorage.setItem(LS_HELP, "hide");
+    closeHelp();
+  }
+});
+    
     // ===== 12) STARTUP =====
     loadState();
     updateHeader();
     updateMarkers();
     initSupabase();
+    maybeShowHelpOnStart();
     startGeo();
 
     // ===== 13) SERVICE WORKER =====
@@ -821,6 +867,7 @@
   </script>
 </body>
 </html>
+
 
 
 
