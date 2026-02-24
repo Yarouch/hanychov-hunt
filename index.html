@@ -180,6 +180,11 @@
       justify-content: center;
       padding: 14px;
       z-index: 99999;
+      /* ===== HELP MODAL tweaks ===== */
+      #helpBackdrop { display:none; }
+      #helpBackdrop.show { display:flex; }
+      #helpModal { max-height: 85vh; overflow:auto; }
+      
     }
 
     /* leaderboard */
@@ -314,9 +319,44 @@
         </div>
       </div>
 
-    </main>
-  </div>
+      <!-- ===== HELP / NÁVOD MODAL ===== -->
+<div class="modal-backdrop" id="helpBackdrop" style="display:none;">
+  <div class="panel" id="helpModal" style="position:relative; max-width:720px; width:min(720px, 100%); border-radius:18px; bottom:auto;">
+    <div class="row" style="align-items:flex-start;">
+      <span class="badge">Návod</span>
+      <div style="flex:1"></div>
+      <button class="btn secondary" id="btnHelpClose" title="Zavřít">✕</button>
+    </div>
 
+    <h2 style="margin-top:10px;">Jak hrát</h2>
+
+    <div class="qtext" style="margin-top:8px;">
+      <ol style="margin:0; padding-left:18px; line-height:1.5;">
+        <li><b>Povol GPS</b> (poloha funguje jen na <b>HTTPS</b> nebo <b>localhost</b>).</li>
+        <li>Na mapě vidíš <b>kontrolní body</b>. Přijdi k bodu co nejblíž.</li>
+        <li>Jakmile budeš v dosahu (tolerance se řídí přesností GPS), otevře se <b>otázka</b>.</li>
+        <li>Máš <b>3 minuty</b>. Za správnou odpověď získáš <b>body</b> a uloží se ti zbylý čas.</li>
+        <li>Splň všechny body a můžeš si uložit běh do <b>leaderboardu</b>.</li>
+      </ol>
+
+      <div style="margin-top:10px; color:var(--muted); font-size:12px;">
+        Tip: když se GPS „sekne“, klepni na status lištu dole (např. „GPS nereaguje“) a hra GPS restartuje.
+      </div>
+    </div>
+
+    <label style="display:flex; gap:10px; align-items:center; margin-top:12px; color:var(--muted); font-size:12px; user-select:none;">
+      <input type="checkbox" id="helpDontShow" />
+      Příště už nezobrazovat
+    </label>
+
+    <div class="actions" style="margin-top:12px;">
+      <button class="btn" id="btnHelpStart">Rozumím, jdeme hrát</button>
+    </div>
+  </div>
+</div>
+      
+    </main>
+  </div> 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
@@ -781,6 +821,7 @@
   </script>
 </body>
 </html>
+
 
 
 
