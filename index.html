@@ -1100,8 +1100,8 @@
     }
 
     // ===== 11) LEADERBOARD =====
-    const SUPABASE_URL = "";
-    const SUPABASE_ANON_KEY = "";
+    const SUPABASE_URL = "https://tdsyqaxkeipcxkrlqnnx.supabase.com";
+    const SUPABASE_ANON_KEY = "sb_publishable_0Hnk1TMC-dQxm692LSsoRw_T-QnFrPy";
     let sb = null, sbReady = false;
 
     async function initSupabase(){
@@ -1119,27 +1119,73 @@
     function saveLbLocal(a) { localStorage.setItem(LS_LB, JSON.stringify(a)); }
 
     async function renderLb() {
-      lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Načítám…</td></tr>`;
-      let entries = [];
+  lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Načítám…</td></tr>`;
 
-      if (sb && sbReady) {
-        try {
-          const { data, error } = await sb.from("leaderboard")
-            .select("nickname,score,saved_seconds,created_at")
-            .order("score", { ascending: false })
-            .order("saved_seconds", { ascending: false })
-            .limit(20);
+  // 1) Primárně: Supabase (sdílené pro všechny)
+  if (sb && sbReady) {
+    try {
+      const { data, error } = await sb.from("leaderboard")
+        .select("nickname,score,saved_seconds,created_at")
+        .order("score", { ascending: false })
+        .order("saved_seconds", { ascending: false })
+        .order("created_at", { ascending: true })
+        .limit(20);
 
-          if (!error && data) entries = data.map(x => ({
-            nickname: x.nickname,
-            score: x.score,
-            saved_seconds: x.saved_seconds,
-            created_at: x.created_at
-          }));
-        } catch (e) {
-          console.warn("LB fetch failed", e);
-        }
+      if (error) throw error;
+
+      const rows = (data || []);
+      if (!rows.length) {
+        lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Zatím žádné uložené běhy.</td></tr>`;
+        return;
       }
+
+      lbBody.innerHTML = rows.map((x,i)=>{
+        const d = x.created_at ? new Date(x.created_at) : null;
+        const dateStr = d ? d.toLocaleDateString("cs-CZ") : "—";
+        const nick = escapeHtml((x.nickname || "—").slice(0,16));
+        const score = Number(x.score ?? 0);
+        const saved = Number(x.saved_seconds ?? 0);
+        return `<tr>
+          <td>${i+1}</td>
+          <td>${nick}</td>
+          <td><b>${score}</b></td>
+          <td>${saved}s</td>
+          <td>${escapeHtml(dateStr)}</td>
+        </tr>`;
+      }).join("");
+
+      return;
+    } catch (e) {
+      console.warn("LB fetch failed (Supabase), falling back to local.", e);
+      // pokud Supabase selže, ukážeme local fallback
+    }
+  }
+
+  // 2) Fallback: local-only (offline / bez klíčů)
+  const local = loadLbLocal()
+    .sort((a,b)=> b.score - a.score || b.saved_seconds - a.saved_seconds)
+    .slice(0,20);
+
+  if (!local.length) {
+    lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Zatím žádné uložené běhy (offline).</td></tr>`;
+    return;
+  }
+
+  lbBody.innerHTML = local.map((x,i)=>{
+    const d = x.created_at ? new Date(x.created_at) : null;
+    const dateStr = d ? d.toLocaleDateString("cs-CZ") : "—";
+    const nick = escapeHtml((x.nickname || "—").slice(0,16));
+    const score = Number(x.score ?? 0);
+    const saved = Number(x.saved_seconds ?? 0);
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${nick}</td>
+      <td><b>${score}</b></td>
+      <td>${saved}s</td>
+      <td>${escapeHtml(dateStr)}</td>
+    </tr>`;
+  }).join("");
+}
 
       const local = loadLbLocal();
       const merged = [...entries, ...local]
@@ -1183,38 +1229,50 @@
     btnLb.addEventListener("click", ()=> lbBox.style.display==="block" ? closeLb() : openLb() );
     btnLbClose.addEventListener("click", closeLb);
 
-    btnSaveRun.addEventListener("click", async ()=>{
-      if (runSaved) return;
+    btnSaveRun.addEventListener("click", async ()=> {
+  if (runSaved) return;
 
-      const nick = (nickInput.value || "").trim() || "Anonym";
-      const entry = {
-        nickname: nick,
-        score: state.score,
-        saved_seconds: state.savedSeconds,
-        created_at: new Date().toISOString()
-      };
+  const nick = (nickInput.value || "").trim() || "Anonym";
+  const entry = {
+    nickname: nick,
+    score: Math.max(0, Math.floor(state.score || 0)),
+    saved_seconds: Math.max(0, Math.floor(state.savedSeconds || 0)),
+    created_at: new Date().toISOString()
+  };
 
-      const local = loadLbLocal();
-      local.push(entry);
-      saveLbLocal(local);
-
-      if (sb && sbReady) {
-        try {
-          await sb.from("leaderboard").insert({
-            nickname: entry.nickname,
-            score: entry.score,
-            saved_seconds: entry.saved_seconds
-          });
-        } catch(e){
-          console.warn("Supabase insert failed", e);
-        }
-      }
+  // Primárně: Supabase (sdílené pro všechny)
+  if (sb && sbReady) {
+    try {
+      const { error } = await sb.from("leaderboard").insert({
+        nickname: entry.nickname,
+        score: entry.score,
+        saved_seconds: entry.saved_seconds
+      });
+      if (error) throw error;
 
       runSaved = true;
       btnSaveRun.textContent = "Uloženo ✅";
       btnSaveRun.disabled = true;
-      renderLb();
-    });
+
+      await renderLb();
+      return;
+    } catch (e) {
+      console.warn("Supabase insert failed, falling back to local.", e);
+      // fallback níže
+    }
+  }
+
+  // Fallback: local-only (offline / bez klíčů)
+  const local = loadLbLocal();
+  local.push(entry);
+  saveLbLocal(local);
+
+  runSaved = true;
+  btnSaveRun.textContent = "Uloženo (offline) ✅";
+  btnSaveRun.disabled = true;
+
+  await renderLb();
+});
 
     // ===== HELP / NÁVOD =====
     const LS_HELP = "hh_help_v1";
@@ -1287,4 +1345,5 @@
   </script>
 </body>
 </html>
+
 
