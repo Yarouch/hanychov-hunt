@@ -33,7 +33,19 @@
       border-bottom:1px solid rgba(148,163,184,.18);
       display:flex; align-items:center; gap:10px;
       z-index: 30;
-    }
+      flex-wrap: wrap;           /* ✅ dovol zalomení */
+      row-gap: 8px;              /* ✅ hezké mezery mezi řádky */
+      }
+      header .title{
+      font-weight:800; letter-spacing:.2px;
+      display:flex; flex-direction:column; line-height:1.05;
+      flex: 1 1 180px;
+      min-width: 160px;  
+      }
+      header .title small{font-weight:600; color:var(--muted); font-size:12px}
+      header .spacer{display:none}
+      }
+      
     header .title{font-weight:800; letter-spacing:.2px; display:flex; flex-direction:column; line-height:1.05}
     header .title small{font-weight:600; color:var(--muted); font-size:12px}
     header .spacer{flex:1}
@@ -179,14 +191,12 @@
       align-items: center;
       justify-content: center;
       padding: 14px;
-      z-index: 99999;
+      z-index: 99999;      
+    }
       /* ===== HELP MODAL tweaks ===== */
       #helpBackdrop { display:none; }
       #helpBackdrop.show { display:flex; }
       #helpModal { max-height: 85vh; overflow:auto; }
-      
-    }
-
     /* leaderboard */
     .lb{
       position:absolute;
@@ -222,6 +232,9 @@
       header{gap:8px}
       .btn{padding:10px 10px}
       .pill{padding:8px 9px}
+       /* ✅ na mobilu: pilly se ve druhém řádku hezky rozprostřou */
+      .pill{flex: 1 1 auto;}
+      #btnCenter, #btnLb, #btnReset{flex: 0 0 auto;}
     }
   </style>
 </head>
@@ -867,6 +880,7 @@ helpBackdrop.addEventListener("click", (e) => {
   </script>
 </body>
 </html>
+
 
 
 
