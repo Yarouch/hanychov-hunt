@@ -578,21 +578,26 @@
     // ===== 0) DATA =====
     // ✅ Přidej ke každému bodu volitelně: fact: "zajímavost..."
     const TARGETS = [
-      { id:"t1", name:"SDH HH", points: 100, lat: 50.7399112, lng: 15.0185144,
-        question:{ text:"V jakém roce byl založen místní sbor dobrovolných hasičů?", options:{a:"1889",b:"1902",c:"1904",d:"1906"}, correct:"b"},
-        fact:"Dobrovolní hasiči jsou často jedním z nejstarších spolků v obcích – kromě zásahů bývají i důležitým centrem komunitního života." },
+      { id:"hasicarna", name:"SDH HH", points: 100, lat: 50.7399112, lng: 15.0185144,
+        question:{ text:"V jakém roce byl založen místní sbor dobrovolných hasičů?", options:{a:"1889",b:"1901",c:"1903",d:"1905"}, correct:"b"},
+        fact:"Sbor dobrovolných hasičů v Horním Hanychově patří mezi nejmladší hasičské sbory v Liberci a jeho historie sahá do roku 1901. Dobrovolní hasiči tu tradičně nejsou jen „u zásahů“, ale i u komunitních akcí a života čtvrti." },
 
-      { id:"t2", name:"Spáleniště", points: 100, lat: 50.7402846, lng: 15.0169694,
+      { id:"spaleniste", name:"Spáleniště", points: 100, lat: 50.7402846, lng: 15.0169694,
         question:{ text:"Kdy vyhořela slavná restaurace Zum Wallhalle?", options:{a:"1918",b:"1939",c:"1942",d:"1948"}, correct:"c"},
-        fact:"Místní názvy často vznikají z událostí, které si lidé dlouho pamatují – požár nebo zánik významného místa se tak může propsat do pojmenování na generace." },
+        fact:"Restaurace Zur Walhalla byla oblíbeným výletním hostincem na Spáleništi před 2. světovou válkou. Vyhořela 8. listopadu 1942 kvůli přetopeným kamenům – odtud název zastávky, který připomíná tuto tragédii." },
 
-      { id:"t3", name:"Lanovka", points: 100, lat: 50.7354826, lng: 15.0010897,
+      { id:"lanovka", name:"Lanovka", points: 100, lat: 50.7354826, lng: 15.0010897,
         question:{ text:"Kdy byla postavená původní lanovka na Ještěd?", options:{a:"1922",b:"1933",c:"1944",d:"1955"}, correct:"b"},
-        fact:"Ještěd je ikonou regionu – díky poloze funguje jako přirozený orientační bod a dlouhodobě láká turisty i sportovce." },
+        fact:"Původní lanovka z roku 1933 spojovala Horní Hanychov s Ještědem za 4 minuty. Po tragické nehodě v roce 2025 je mimo provoz – město připravuje novou krásnou lanovku." },
 
-      { id:"t4", name:"Kontrolní bod", points: 100, lat: 50.7398127, lng: 15.0089711,
+      { id:"vtip", name:"Kontrolní bod", points: 100, lat: 50.7398127, lng: 15.0089711,
         question:{ text:"Máš se dobře?", options:{a:"ano",b:"ne",c:"nevím",d:"netuším"}, correct:"a"},
-        fact:"Krátká pauza je taky strategie: v terénních hrách často vyhrává ten, kdo si hlídá tempo a energii." }
+        fact:"Krátká pauza je taky strategie: v terénních hrách často vyhrává ten, kdo si hlídá tempo a energii." },
+      
+      { id:"brana_borcu", name:"Brána borců", points: 100, lat: 50.7365, lng: 15.0042,  // Přibližné GPS, uprav podle mapy
+        question:{ text:"Jaký je název sochy od Laca Sorokáče u skiareálu?", options:{a:"Brána lyžařů",b:"Srdce Ještědu",c:"Brána borců",d:"Cíl můstků"}, correct:"c"},
+        fact:"Brána borců je abstraktní socha z roku 2008 představující lyžaře jako cílovou bránu. Vznikla pro Sculpture Forum a dnes vítá návštěvníky Ještědu jako symbol sportu a umění." }
+
     ];
 
     // ===== 1) HELPERS =====
@@ -1282,3 +1287,4 @@
   </script>
 </body>
 </html>
+
