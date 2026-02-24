@@ -568,20 +568,25 @@
 
   <script>
     // ===== 0) DATA =====
-    const TARGETS = [
-      { id:"hasicarna", name:"SDH HH", points: 100, lat: 50.7399112, lng: 15.0185144,
-        question:{ text:"V jakém roce byl založen místní sbor dobrovolných hasičů?", options:{a:"1889",b:"1902",c:"1904",d:"1906"}, correct:"b"} },
-      { id:"spaleniste", name:"Spáleniště", points: 100, lat: 50.7402846, lng: 15.0169694,
-        question:{ text:"Kdy vyhořela slavná restaurace Zum Wallhalle?", options:{a:"1918",b:"1939",c:"1942",d:"1948"}, correct:"c"} },
-      { id:"stanice_lanovky", name:"Lanovka", points: 100, lat: 50.7354826, lng: 15.0010897,
-        question:{ text:"Kdy byla postavená původní lanovka na Ještěd?", options:{a:"1922",b:"1933",c:"1944",d:"1955"}, correct:"b"} },
-      { id:"kontrola", name:"Kontrolní bod", points: 100, lat: 50.7398127, lng: 15.0089711,
-        question:{ text:"Máš se dobře?", options:{a:"ano",b:"ne",c:"nevím",d:"netuším"}, correct:"a"} }
-     { id:"kostel", name:"Kontrolní bod", points: 100, lat: 50.7415237, lng: 15.0208265,
-        question:{ text:"Kolik dveří vede do kostela?", options:{a:"2",b:"3",c:"4",d:"5"}, correct:"d"} }
-      { id:"brana_borcu", name:"Socha", points: 100, lat: 50.7380168, lng: 15.0118893,
-        question:{ text:"Jak se jmenuje socha od Laca Sorokáče?", options:{a:"Brána nenávratna",b:"Oblouk vzájemnosti",c:"Skokan na lyžích",d:"Brána borců"}, correct:"d"} }
-    ];
+const TARGETS = [
+  { id:"hasicarna", name:"SDH HH", points: 100, lat: 50.7399112, lng: 15.0185144,
+    question:{ text:"V jakém roce byl založen místní sbor dobrovolných hasičů?", options:{a:"1889",b:"1902",c:"1904",d:"1906"}, correct:"b"} },
+
+  { id:"spaleniste", name:"Spáleniště", points: 100, lat: 50.7402846, lng: 15.0169694,
+    question:{ text:"Kdy vyhořela slavná restaurace Zum Wallhalle?", options:{a:"1918",b:"1939",c:"1942",d:"1948"}, correct:"c"} },
+
+  { id:"stanice_lanovky", name:"Lanovka", points: 100, lat: 50.7354826, lng: 15.0010897,
+    question:{ text:"Kdy byla postavená původní lanovka na Ještěd?", options:{a:"1922",b:"1933",c:"1944",d:"1955"}, correct:"b"} },
+
+  { id:"kontrola", name:"Kontrolní bod", points: 100, lat: 50.7398127, lng: 15.0089711,
+    question:{ text:"Máš se dobře?", options:{a:"ano",b:"ne",c:"nevím",d:"netuším"}, correct:"a"} },
+
+  { id:"kostel", name:"Kostel", points: 100, lat: 50.7415237, lng: 15.0208265,
+    question:{ text:"Kolik dveří vede do kostela?", options:{a:"2",b:"3",c:"4",d:"5"}, correct:"d"} },
+
+  { id:"brana_borcu", name:"Socha", points: 100, lat: 50.7380168, lng: 15.0118893,
+    question:{ text:"Jak se jmenuje socha od Laca Sorokáče?", options:{a:"Brána nenávratna",b:"Oblouk vzájemnosti",c:"Skokan na lyžích",d:"Brána borců"}, correct:"d"} }
+];
 
     // ===== 1) HELPERS =====
     const clamp = (v,min,max)=>Math.max(min, Math.min(max, v));
@@ -1242,4 +1247,5 @@
   </script>
 </body>
 </html>
+
 
