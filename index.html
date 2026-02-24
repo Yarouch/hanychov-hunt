@@ -156,6 +156,26 @@
     z-index: 20 !important;
   }
 
+  /* ===== Always-visible labels for targets (Variant A) ===== */
+  .hh-label{
+    background: rgba(2,6,23,.75);
+    border: 1px solid rgba(148,163,184,.25);
+    color: #e2e8f0;
+    padding: 6px 8px;
+    border-radius: 10px;
+    box-shadow: 0 10px 24px rgba(0,0,0,.35);
+    font-weight: 800;
+    font-size: 12px;
+    line-height: 1.15;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .hh-label .muted{
+    color: #94a3b8;
+    font-weight: 700;
+    font-size: 11px;
+  }
+
   /* status banner */
   .status{
     position:absolute;
@@ -575,7 +595,7 @@
     }
     function calcR(ac) { return !ac||!isFinite(ac)?25:clamp(Math.round(ac*1.2),18,50); }
 
-    // ✅ XSS-safe escape for leaderboard rendering
+    // ✅ XSS-safe escape for leaderboard rendering + popup strings
     function escapeHtml(s){
       return String(s ?? "")
         .replaceAll("&","&amp;")
@@ -596,13 +616,10 @@
     };
     let runSaved = false;
 
-    // init defaults (for fresh state)
     function ensureTargetDefaults(){
-      TARGETS.forEach(t=>{
-        if (state.closed?.[t.id] === undefined) state.closed[t.id] = false;
-        if (state.answered?.[t.id] === undefined) state.answered[t.id] = false;
-      });
-      // guard if older state didn't have objects
+      if (!state || typeof state !== "object") state = { score:0, savedSeconds:0, closed:{}, answered:{} };
+      if (typeof state.score !== "number") state.score = 0;
+      if (typeof state.savedSeconds !== "number") state.savedSeconds = 0;
       if (!state.closed || typeof state.closed !== "object") state.closed = {};
       if (!state.answered || typeof state.answered !== "object") state.answered = {};
       TARGETS.forEach(t=>{
@@ -616,14 +633,6 @@
         const s = JSON.parse(localStorage.getItem(LS_STATE));
         if (s && typeof s === "object") state = s;
       } catch(e){}
-      // ✅ merge defaults for any new targets / missing keys
-      if (!state || typeof state !== "object") {
-        state = { score:0, savedSeconds:0, closed:{}, answered:{} };
-      }
-      if (typeof state.score !== "number") state.score = 0;
-      if (typeof state.savedSeconds !== "number") state.savedSeconds = 0;
-      if (!state.closed || typeof state.closed !== "object") state.closed = {};
-      if (!state.answered || typeof state.answered !== "object") state.answered = {};
       ensureTargetDefaults();
     }
     function saveState(){
@@ -645,7 +654,6 @@
       saveState();
       setStatus("Reset hotov.");
       statusErrorOff();
-      // po resetu klidně pokračuj ve sledování GPS
     }
 
     // ===== 3) UI refs =====
@@ -701,7 +709,26 @@
     TARGETS.forEach(t=>{
       const m = L.circleMarker([t.lat,t.lng],{
         radius:10, weight:2, color:"#38bdf8", fillColor:"#38bdf8", fillOpacity:.25
-      }).addTo(map).bindPopup(`<b>${escapeHtml(t.name)}</b><br>${t.points} bodů`);
+      }).addTo(map);
+
+      // popup (tap/click)
+      m.bindPopup(`<b>${escapeHtml(t.name)}</b><br>${t.points} bodů`);
+
+      // ✅ always-visible label (Variant A)
+      m.bindTooltip(
+        `<div class="hh-label">
+           ${escapeHtml(t.name)}<br>
+           <span class="muted">${t.points} bodů</span>
+         </div>`,
+        {
+          permanent: true,
+          direction: "top",
+          offset: [0, -10],
+          opacity: 1,
+          interactive: false
+        }
+      );
+
       markerMap[t.id]=m;
 
       const z = L.circle([t.lat,t.lng],{
@@ -732,7 +759,6 @@
     }
 
     function invalidateMap(){
-      // Leaflet potřebuje při překrytí UI občas přepočítat velikost
       setTimeout(()=>map.invalidateSize(), 120);
     }
 
@@ -799,7 +825,6 @@
     }
 
     function closeModal({reason="manual", cooldown=true} = {}) {
-      // cooldown pouze při manuálním zavření (lepší UX)
       if (cooldown && reason === "manual") {
         questionCooldownUntil = Date.now() + QUESTION_COOLDOWN_MS;
       }
@@ -895,13 +920,11 @@
       gpsWatchdogTimer = setTimeout(() => {
         const age = lastFixAt ? (Date.now() - lastFixAt) : Infinity;
 
-        // Pokud už máme fix a poslední fix není "starý", nic nehlaš
         if (gpsFirstFix && age < 30000) { // 30s tolerance
           resetGpsWatchdog();
           return;
         }
 
-        // Teprve teď hlásíme problém
         statusErrorOn();
         setStatus(gpsFirstFix
           ? "⚠️ GPS chvíli neaktualizuje — klepni sem pro obnovení"
@@ -973,7 +996,6 @@
         const r = calcR(ac);
         TARGETS.forEach(t => zoneMap[t.id].setRadius(r));
 
-        // hotovo? můžeme vypnout GPS
         if (TARGETS.every(t => !!state.closed[t.id])) {
           maybeStopGpsIfDone();
           return;
@@ -982,7 +1004,6 @@
         if (questionOpen) return;
         if (Date.now() < questionCooldownUntil) return;
 
-        // ✅ lepší UX: vyber nejbližší target v dosahu (ne první v seznamu)
         let nearest = null, nearestDist = Infinity;
         let inRangeNearest = null, inRangeDist = Infinity;
 
@@ -1002,8 +1023,6 @@
         if (nearest) setStatus(`Nejblíž: ${nearest.name} — ${Math.round(nearestDist)} m (tolerance ~${r} m)`);
 
       }, err => {
-        // u watchPosition se může vracet TIMEOUT (code 3). Po prvním fixu ho ignorujeme,
-        // protože GPS může dál fungovat a jen vypadne jeden update.
         if (err.code === 3 && gpsFirstFix) return;
 
         statusErrorOn();
@@ -1026,15 +1045,14 @@
       }
       setStatus("Hledám polohu…");
       statusErrorOff();
-      // Uživatel může restart vyvolat i hned klikem na status bar
       setStatusClickable(true, restartGps);
       resetGpsWatchdog();
       startWatching();
     }
 
     // ===== 11) LEADERBOARD =====
-    const SUPABASE_URL = "";       // např. https://xyzcompany.supabase.co
-    const SUPABASE_ANON_KEY = "";  // anon key
+    const SUPABASE_URL = "";
+    const SUPABASE_ANON_KEY = "";
     let sb = null, sbReady = false;
 
     async function initSupabase(){
@@ -1074,7 +1092,6 @@
         }
       }
 
-      // merge with local as fallback
       const local = loadLbLocal();
       const merged = [...entries, ...local]
         .sort((a,b)=> b.score - a.score || b.saved_seconds - a.saved_seconds)
@@ -1085,7 +1102,6 @@
         return;
       }
 
-      // ✅ XSS-safe rendering
       lbBody.innerHTML = merged.map((x,i)=>{
         const d = x.created_at ? new Date(x.created_at) : null;
         const dateStr = d ? d.toLocaleDateString("cs-CZ") : "—";
@@ -1103,7 +1119,6 @@
     }
 
     function openLb(){
-      // zavři jiné UI vrstvy
       if (questionOpen) closeModal({reason:"system", cooldown:false});
       closeHelp();
       try { map.closePopup(); } catch(e){}
@@ -1130,12 +1145,10 @@
         created_at: new Date().toISOString()
       };
 
-      // local
       const local = loadLbLocal();
       local.push(entry);
       saveLbLocal(local);
 
-      // supabase (optional)
       if (sb && sbReady) {
         try {
           await sb.from("leaderboard").insert({
@@ -1162,11 +1175,8 @@
     const helpDontShow  = document.getElementById("helpDontShow");
 
     function openHelp() {
-      // zavři ostatní vrstvy (ať se UI nepřekrývá)
       if (questionOpen) closeModal({reason:"system", cooldown:false});
       closeLb();
-
-      // zavři případné Leaflet popupy
       try { map.closePopup(); } catch(e) {}
 
       helpBackdrop.classList.add("show");
@@ -1196,7 +1206,6 @@
       closeHelp();
     });
 
-    // klik mimo okno zavře (volitelné)
     helpBackdrop.addEventListener("click", (e) => {
       if (e.target === helpBackdrop) {
         if (helpDontShow.checked) localStorage.setItem(LS_HELP, "hide");
