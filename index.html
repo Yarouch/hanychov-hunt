@@ -298,6 +298,12 @@
   .result.good{ border-color: rgba(34,197,94,.55); background: rgba(34,197,94,.08); }
   .result.bad{ border-color: rgba(239,68,68,.55); background: rgba(239,68,68,.08); }
 
+  /* ✅ Fact styling */
+  .result.fact{
+    border-color: rgba(148,163,184,.35);
+    background: rgba(148,163,184,.06);
+  }
+
   .panel .actions{
     display:flex;
     gap:10px;
@@ -376,12 +382,12 @@
 
   #pillScore{
     order: 2;
-    margin-left: auto;   /* odtlačí doprava */
+    margin-left: auto;
   }
 
   #pillSaved{
     order: 3;
-    flex: 1 1 auto;      /* vyplní řádek */
+    flex: 1 1 auto;
   }
 
   .btncapsule{ order: 4; }
@@ -479,6 +485,8 @@
         </div>
 
         <div class="result" id="resultBox"></div>
+        <!-- ✅ Zajímavost po vyhodnocení -->
+        <div class="result fact" id="factBox"></div>
 
         <div class="actions">
           <button class="btn" id="btnSubmit">Odeslat</button>
@@ -568,25 +576,24 @@
 
   <script>
     // ===== 0) DATA =====
-const TARGETS = [
-  { id:"hasicarna", name:"SDH HH", points: 100, lat: 50.7399112, lng: 15.0185144,
-    question:{ text:"V jakém roce byl založen místní sbor dobrovolných hasičů?", options:{a:"1889",b:"1902",c:"1904",d:"1906"}, correct:"b"} },
+    // ✅ Přidej ke každému bodu volitelně: fact: "zajímavost..."
+    const TARGETS = [
+      { id:"t1", name:"SDH HH", points: 100, lat: 50.7399112, lng: 15.0185144,
+        question:{ text:"V jakém roce byl založen místní sbor dobrovolných hasičů?", options:{a:"1889",b:"1902",c:"1904",d:"1906"}, correct:"b"},
+        fact:"Dobrovolní hasiči jsou často jedním z nejstarších spolků v obcích – kromě zásahů bývají i důležitým centrem komunitního života." },
 
-  { id:"spaleniste", name:"Spáleniště", points: 100, lat: 50.7402846, lng: 15.0169694,
-    question:{ text:"Kdy vyhořela slavná restaurace Zum Wallhalle?", options:{a:"1918",b:"1939",c:"1942",d:"1948"}, correct:"c"} },
+      { id:"t2", name:"Spáleniště", points: 100, lat: 50.7402846, lng: 15.0169694,
+        question:{ text:"Kdy vyhořela slavná restaurace Zum Wallhalle?", options:{a:"1918",b:"1939",c:"1942",d:"1948"}, correct:"c"},
+        fact:"Místní názvy často vznikají z událostí, které si lidé dlouho pamatují – požár nebo zánik významného místa se tak může propsat do pojmenování na generace." },
 
-  { id:"stanice_lanovky", name:"Lanovka", points: 100, lat: 50.7354826, lng: 15.0010897,
-    question:{ text:"Kdy byla postavená původní lanovka na Ještěd?", options:{a:"1922",b:"1933",c:"1944",d:"1955"}, correct:"b"} },
+      { id:"t3", name:"Lanovka", points: 100, lat: 50.7354826, lng: 15.0010897,
+        question:{ text:"Kdy byla postavená původní lanovka na Ještěd?", options:{a:"1922",b:"1933",c:"1944",d:"1955"}, correct:"b"},
+        fact:"Ještěd je ikonou regionu – díky poloze funguje jako přirozený orientační bod a dlouhodobě láká turisty i sportovce." },
 
-  { id:"kontrola", name:"Kontrolní bod", points: 100, lat: 50.7398127, lng: 15.0089711,
-    question:{ text:"Máš se dobře?", options:{a:"ano",b:"ne",c:"nevím",d:"netuším"}, correct:"a"} },
-
-  { id:"kostel", name:"Kostel", points: 100, lat: 50.7415237, lng: 15.0208265,
-    question:{ text:"Kolik dveří vede do kostela?", options:{a:"2",b:"3",c:"4",d:"5"}, correct:"d"} },
-
-  { id:"brana_borcu", name:"Socha", points: 100, lat: 50.7380168, lng: 15.0118893,
-    question:{ text:"Jak se jmenuje socha od Laca Sorokáče?", options:{a:"Brána nenávratna",b:"Oblouk vzájemnosti",c:"Skokan na lyžích",d:"Brána borců"}, correct:"d"} }
-];
+      { id:"t4", name:"Kontrolní bod", points: 100, lat: 50.7398127, lng: 15.0089711,
+        question:{ text:"Máš se dobře?", options:{a:"ano",b:"ne",c:"nevím",d:"netuším"}, correct:"a"},
+        fact:"Krátká pauza je taky strategie: v terénních hrách často vyhrává ten, kdo si hlídá tempo a energii." }
+    ];
 
     // ===== 1) HELPERS =====
     const clamp = (v,min,max)=>Math.max(min, Math.min(max, v));
@@ -596,7 +603,6 @@ const TARGETS = [
       return String(m).padStart(2,"0")+":"+String(r).padStart(2,"0");
     };
     function dist(lat1, lon1, lat2, lon2){
-      // haversine (m)
       const R=6371000, toRad=x=>x*Math.PI/180;
       const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
       const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
@@ -604,7 +610,6 @@ const TARGETS = [
     }
     function calcR(ac) { return !ac||!isFinite(ac)?25:clamp(Math.round(ac*1.2),18,50); }
 
-    // ✅ XSS-safe escape for leaderboard rendering + popup strings
     function escapeHtml(s){
       return String(s ?? "")
         .replaceAll("&","&amp;")
@@ -620,8 +625,8 @@ const TARGETS = [
     let state = {
       score: 0,
       savedSeconds: 0,
-      closed: {},    // id -> bool (už vyřešeno)
-      answered: {}   // id -> bool (správně?)
+      closed: {},
+      answered: {}
     };
     let runSaved = false;
 
@@ -686,6 +691,7 @@ const TARGETS = [
     const optD = document.getElementById("optD");
     const elTimer = document.getElementById("timer");
     const resultBox = document.getElementById("resultBox");
+    const factBox = document.getElementById("factBox");
     const btnSubmit = document.getElementById("btnSubmit");
     const btnClose = document.getElementById("btnClose");
 
@@ -720,7 +726,6 @@ const TARGETS = [
         radius:10, weight:2, color:"#38bdf8", fillColor:"#38bdf8", fillOpacity:.25
       }).addTo(map);
 
-      // popup (tap/click)
       m.bindPopup(`<b>${escapeHtml(t.name)}</b><br>${t.points} bodů`);
 
       // ✅ always-visible label (Variant A)
@@ -729,13 +734,7 @@ const TARGETS = [
            ${escapeHtml(t.name)}<br>
            <span class="muted">${t.points} bodů</span>
          </div>`,
-        {
-          permanent: true,
-          direction: "top",
-          offset: [0, -10],
-          opacity: 1,
-          interactive: false
-        }
+        { permanent:true, direction:"top", offset:[0,-10], opacity:1, interactive:false }
       );
 
       markerMap[t.id]=m;
@@ -783,10 +782,12 @@ const TARGETS = [
 
     // ===== 5) QUESTION FLOW =====
     let timerInt = null, remaining = 180, questionOpen = false, activeTarget = null;
-    let questionCooldownUntil = 0; // ms timestamp
+    let questionCooldownUntil = 0;
     const QUESTION_COOLDOWN_MS = 6000;
 
-    // highlight selected option
+    // ✅ stav: po vyhodnocení čekáme na „Pokračovat“
+    let awaitingContinue = false;
+
     document.querySelectorAll('input[name="ans"]').forEach(r=>{
       r.addEventListener("change", ()=>{
         document.querySelectorAll(".opt").forEach(l=>l.classList.remove("selected"));
@@ -797,7 +798,6 @@ const TARGETS = [
     function openQuestion(target) {
       if (questionOpen || state.closed[target.id]) return;
 
-      // když se otevírá otázka, zavři LB/Help + popupy
       closeLb();
       closeHelp();
       try { map.closePopup(); } catch(e){}
@@ -805,10 +805,20 @@ const TARGETS = [
       activeTarget = target;
       questionOpen = true;
       remaining = 180;
+      awaitingContinue = false;
 
       resultBox.style.display = "none";
       resultBox.className = "result";
+
+      factBox.style.display = "none";
+      factBox.className = "result fact";
+      factBox.textContent = "";
+
       btnSubmit.disabled = false;
+      btnSubmit.textContent = "Odeslat";
+
+      btnClose.textContent = "Zavřít";
+
       document.querySelectorAll('input[name="ans"]').forEach(r => r.checked = false);
       document.querySelectorAll(".opt").forEach(l => l.classList.remove("selected"));
 
@@ -819,6 +829,7 @@ const TARGETS = [
       optB.textContent = target.question.options.b;
       optC.textContent = target.question.options.c;
       optD.textContent = target.question.options.d;
+
       elTimer.textContent = "03:00";
       elTimer.classList.remove("urgent");
 
@@ -841,9 +852,34 @@ const TARGETS = [
       questionPanel.classList.remove("open");
       questionOpen = false;
       activeTarget = null;
+      awaitingContinue = false;
       elTimer.classList.remove("urgent");
+
       if (timerInt) { clearInterval(timerInt); timerInt = null; }
       invalidateMap();
+    }
+
+    function showFactIfAny(t){
+      const fact = (t && t.fact) ? String(t.fact) : "";
+      if (!fact.trim()) {
+        factBox.style.display = "none";
+        return;
+      }
+      factBox.style.display = "block";
+      factBox.className = "result fact";
+      // textContent = safe (žádné HTML)
+      factBox.textContent = "Zajímavost: " + fact.trim();
+    }
+
+    function finalizeAndWaitForContinue(t){
+      // po vyhodnocení se UI přepne do režimu „Pokračovat“
+      awaitingContinue = true;
+      btnSubmit.disabled = true;
+      btnClose.textContent = "Pokračovat";
+      showFactIfAny(t);
+      // hned uložíme, aby se změny projevily na mapě/score i při čtení zajímavosti
+      saveState();
+      maybeStopGpsIfDone();
     }
 
     function closeAsTimeout() {
@@ -857,19 +893,15 @@ const TARGETS = [
       resultBox.style.display = "block";
       resultBox.className = "result bad";
       resultBox.textContent = `Čas vypršel. +0 bodů. Správná odpověď: ${t.question.correct.toUpperCase()}) ${t.question.options[t.question.correct]}.`;
-      btnSubmit.disabled = true;
 
-      setTimeout(() => {
-        closeModal({reason:"system", cooldown:false});
-        saveState();
-        maybeStopGpsIfDone();
-      }, 2000);
+      finalizeAndWaitForContinue(t);
     }
 
     btnSubmit.addEventListener("click", () => {
       if (btnSubmit.disabled || !activeTarget) return;
       const chosen = document.querySelector('input[name="ans"]:checked')?.value;
       if (!chosen) { alert("Vyber jednu odpověď."); return; }
+
       if (timerInt) { clearInterval(timerInt); timerInt = null; }
 
       const t = activeTarget, ok = chosen === t.question.correct;
@@ -883,16 +915,19 @@ const TARGETS = [
       resultBox.textContent = ok
         ? `Správně! +${t.points} bodů a +${remaining}s uloženého času.`
         : `Špatně. +0 bodů. Správná odpověď: ${t.question.correct.toUpperCase()}) ${t.question.options[t.question.correct]}.`;
-      btnSubmit.disabled = true;
 
-      setTimeout(() => {
-        closeModal({reason:"system", cooldown:false});
-        saveState();
-        maybeStopGpsIfDone();
-      }, 2000);
+      finalizeAndWaitForContinue(t);
     });
 
-    btnClose.addEventListener("click", () => closeModal({reason:"manual", cooldown:true}));
+    btnClose.addEventListener("click", () => {
+      if (awaitingContinue) {
+        // po vyhodnocení: zavři a dej cooldown (ať se hned znovu neotevře při stání v zóně)
+        closeModal({reason:"manual", cooldown:true});
+      } else {
+        // před vyhodnocením: normální zavření
+        closeModal({reason:"manual", cooldown:true});
+      }
+    });
 
     // ===== 10) GEOLOKACE =====
     function setStatus(t) { elStatus.textContent = t; }
@@ -921,7 +956,7 @@ const TARGETS = [
     }
 
     let gpsWatchdogTimer = null, gpsWatchId = null, gpsFirstFix = false;
-    let lastFixAt = 0; // ms timestamp posledního platného fixu
+    let lastFixAt = 0;
 
     function resetGpsWatchdog() {
       if (gpsWatchdogTimer) clearTimeout(gpsWatchdogTimer);
@@ -929,7 +964,7 @@ const TARGETS = [
       gpsWatchdogTimer = setTimeout(() => {
         const age = lastFixAt ? (Date.now() - lastFixAt) : Infinity;
 
-        if (gpsFirstFix && age < 30000) { // 30s tolerance
+        if (gpsFirstFix && age < 30000) {
           resetGpsWatchdog();
           return;
         }
@@ -1247,5 +1282,3 @@ const TARGETS = [
   </script>
 </body>
 </html>
-
-
