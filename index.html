@@ -502,7 +502,7 @@
         <header>
           <div class="title">
             Leaderboard
-            <small>Top běhy (lokálně + Supabase)</small>
+            <small>Top výsledky</small>
           </div>
           <div class="spacer"></div>
           <button class="btn secondary" id="btnLbClose">Zavřít</button>
@@ -527,7 +527,7 @@
             <button class="btn" id="btnSaveRun">Uložit běh</button>
           </div>
           <div class="muted" style="font-size:11px; margin-top:8px;">
-            Pozn.: Uložení do Supabase vyžaduje správně nastavené klíče (viz JS).
+            Pozn.: Bavte se!
           </div>
         </div>
       </div>
@@ -549,7 +549,7 @@
               <li>Na mapě vidíš <b>kontrolní body</b>. Přijdi k bodu co nejblíž.</li>
               <li>Jakmile budeš v dosahu (tolerance se řídí přesností GPS), otevře se <b>otázka</b>.</li>
               <li>Máš <b>3 minuty</b>. Za správnou odpověď získáš <b>body</b> a uloží se ti zbylý čas.</li>
-              <li>Splň všechny body a můžeš si uložit běh do <b>leaderboardu</b>.</li>
+              <li>Splň všechny body a můžeš si uložit skóra a čas do <b>leaderboardu</b>.</li>
             </ol>
 
             <div style="margin-top:10px; color:var(--muted); font-size:12px;">
@@ -668,7 +668,7 @@
       closeLb();
       closeHelp();
       runSaved = false;
-      document.getElementById("btnSaveRun").textContent = "Uložit běh";
+      document.getElementById("btnSaveRun").textContent = "Uložit skóre a čas";
       document.getElementById("btnSaveRun").disabled = false;
       saveState();
       setStatus("Reset hotov.");
@@ -1321,6 +1321,7 @@ btnSaveRun.addEventListener("click", async ()=> {
   </script>
 </body>
 </html>
+
 
 
 
