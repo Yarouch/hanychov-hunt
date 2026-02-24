@@ -1099,26 +1099,26 @@
       startWatching();
     }
 
-    // ===== 11) LEADERBOARD =====
-    const SUPABASE_URL = "https://tdsyqaxkeipcxkrlqnnx.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkc3lxYXhrZWlwY3hrcmxxbm54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MzMxMzgsImV4cCI6MjA4NzUwOTEzOH0.HHQren3L0yzXzqyryJlDzYdKb7WkyrtGm24zHJ8b8IA";
-    let sb = null, sbReady = false;
+   // ===== 11) LEADERBOARD =====
+const SUPABASE_URL = "https://tdsyqaxkeipcxkrlqnnx.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkc3lxYXhrZWlwY3hrcmxxbm54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MzMxMzgsImV4cCI6MjA4NzUwOTEzOH0.HHQren3L0yzXzqyryJlDzYdKb7WkyrtGm24zHJ8b8IA";
+let sb = null, sbReady = false;
 
-    async function initSupabase(){
-      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
-      try{
-        const mod = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
-        sb = mod.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        sbReady = true;
-      }catch(e){
-        console.warn("Supabase init failed", e);
-      }
-    }
+async function initSupabase(){
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+  try{
+    const mod = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
+    sb = mod.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    sbReady = true;
+  }catch(e){
+    console.warn("Supabase init failed", e);
+  }
+}
 
-    function loadLbLocal() { try { return JSON.parse(localStorage.getItem(LS_LB)) ?? []; } catch { return []; } }
-    function saveLbLocal(a) { localStorage.setItem(LS_LB, JSON.stringify(a)); }
+function loadLbLocal() { try { return JSON.parse(localStorage.getItem(LS_LB)) ?? []; } catch { return []; } }
+function saveLbLocal(a) { localStorage.setItem(LS_LB, JSON.stringify(a)); }
 
-    async function renderLb() {
+async function renderLb() {
   lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Načítám…</td></tr>`;
 
   // 1) Primárně: Supabase (sdílené pro všechny)
@@ -1187,49 +1187,25 @@
   }).join("");
 }
 
-      const local = loadLbLocal();
-      const merged = [...entries, ...local]
-        .sort((a,b)=> b.score - a.score || b.saved_seconds - a.saved_seconds)
-        .slice(0,20);
+function openLb(){
+  if (questionOpen) closeModal({reason:"system", cooldown:false});
+  closeHelp();
+  try { map.closePopup(); } catch(e){}
 
-      if (!merged.length) {
-        lbBody.innerHTML = `<tr><td colspan="5" class="lb-empty">Zatím žádné uložené běhy.</td></tr>`;
-        return;
-      }
+  lbBox.style.display = "block";
+  renderLb();
+  invalidateMap();
+}
 
-      lbBody.innerHTML = merged.map((x,i)=>{
-        const d = x.created_at ? new Date(x.created_at) : null;
-        const dateStr = d ? d.toLocaleDateString("cs-CZ") : "—";
-        const nick = escapeHtml((x.nickname || "—").slice(0,16));
-        const score = Number(x.score ?? 0);
-        const saved = Number(x.saved_seconds ?? 0);
-        return `<tr>
-          <td>${i+1}</td>
-          <td>${nick}</td>
-          <td><b>${score}</b></td>
-          <td>${saved}s</td>
-          <td>${escapeHtml(dateStr)}</td>
-        </tr>`;
-      }).join("");
-    }
+function closeLb(){
+  lbBox.style.display = "none";
+  invalidateMap();
+}
 
-    function openLb(){
-      if (questionOpen) closeModal({reason:"system", cooldown:false});
-      closeHelp();
-      try { map.closePopup(); } catch(e){}
+btnLb.addEventListener("click", ()=> lbBox.style.display==="block" ? closeLb() : openLb() );
+btnLbClose.addEventListener("click", closeLb);
 
-      lbBox.style.display = "block";
-      renderLb();
-      invalidateMap();
-    }
-    function closeLb(){
-      lbBox.style.display = "none";
-      invalidateMap();
-    }
-    btnLb.addEventListener("click", ()=> lbBox.style.display==="block" ? closeLb() : openLb() );
-    btnLbClose.addEventListener("click", closeLb);
-
-    btnSaveRun.addEventListener("click", async ()=> {
+btnSaveRun.addEventListener("click", async ()=> {
   if (runSaved) return;
 
   const nick = (nickInput.value || "").trim() || "Anonym";
@@ -1345,6 +1321,7 @@
   </script>
 </body>
 </html>
+
 
 
 
