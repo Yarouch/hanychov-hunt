@@ -8,45 +8,53 @@ const ASSETS = [
 ];
 
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE).then((cache) => cache.addAll(ASSETS))
   );
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.map(k => k !== CACHE ? caches.delete(k) : null))
-    )
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => (k !== CACHE ? caches.delete(k) : null)));
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
+  // jen stejné origin soubory (volitelné, ale čisté)
+  // if (url.origin !== self.location.origin) return;
+
   // Network-first for HTML
   if (req.mode === "navigate" || (req.headers.get("accept") || "").includes("text/html")) {
-    event.respondWith(
-      fetch(req).then(res => {
+    event.respondWith((async () => {
+      try {
+        const res = await fetch(req);
         const copy = res.clone();
-        caches.open(CACHE).then(cache => cache.put(req, copy));
+        const cache = await caches.open(CACHE);
+        if (res.ok && res.type === "basic") await cache.put(req, copy);
         return res;
-      }).catch(() => caches.match(req).then(r => r || caches.match("./index.html")))
-    );
+      } catch {
+        const cached = await caches.match(req);
+        return cached || caches.match("./index.html");
+      }
+    })());
     return;
   }
 
   // Cache-first for other assets
-  event.respondWith(
-    caches.match(req).then(cached =>
-      cached || fetch(req).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(cache => cache.put(req, copy));
-        return res;
-      })
-    )
-  );
+  event.respondWith((async () => {
+    const cached = await caches.match(req);
+    if (cached) return cached;
+
+    const res = await fetch(req);
+    const copy = res.clone();
+    const cache = await caches.open(CACHE);
+    if (res.ok && res.type === "basic") await cache.put(req, copy);
+    return res;
+  })());
 });
