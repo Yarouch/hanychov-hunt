@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-  
+
 <style>
   :root{
     --bg:#0b1220;
@@ -172,6 +172,7 @@
     box-shadow: var(--shadow);
     z-index: 25;
     backdrop-filter: blur(10px);
+    cursor: default; /* click target nastavujeme jen když je potřeba */
   }
 
   .status .msg{
@@ -285,7 +286,7 @@
 
   .panel .actions .btn{ flex:1; }
 
-  /* Modal backdrop (pro jistotu, kdybys ji někdy použil) */
+  /* Modal backdrop */
   .modal-backdrop{
     position: fixed;
     inset: 0;
@@ -365,48 +366,47 @@
 
   .btncapsule{ order: 4; }
 
-/* ===== Button capsule (game UI) ===== */
-.btncapsule{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:6px;
-  border-radius:999px;
-  background:rgba(2,6,23,.55);
-  border:1px solid rgba(148,163,184,.18);
-}
+  /* ===== Button capsule (game UI) ===== */
+  .btncapsule{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:6px;
+    border-radius:999px;
+    background:rgba(2,6,23,.55);
+    border:1px solid rgba(148,163,184,.18);
+  }
 
-.iconbtn{
-  appearance:none;
-  border:none;
-  width:44px;
-  height:44px;
-  border-radius:14px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  user-select:none;
+  .iconbtn{
+    appearance:none;
+    border:none;
+    width:44px;
+    height:44px;
+    border-radius:14px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    user-select:none;
 
-  background:rgba(148,163,184,.10);
-  border:1px solid rgba(148,163,184,.25);
-  color:var(--text);
+    background:rgba(148,163,184,.10);
+    border:1px solid rgba(148,163,184,.25);
+    color:var(--text);
 
-  transition: transform .08s ease, background .15s ease;
-}
-.iconbtn:active{ transform: scale(.98); }
+    transition: transform .08s ease, background .15s ease;
+  }
+  .iconbtn:active{ transform: scale(.98); }
 
-.iconbtn:hover{
-  background:rgba(148,163,184,.14);
-}
+  .iconbtn:hover{
+    background:rgba(148,163,184,.14);
+  }
 
-.iconbtn.danger{
-  background:rgba(239,68,68,.12);
-  border:1px solid rgba(239,68,68,.35);
-}
-  
+  .iconbtn.danger{
+    background:rgba(239,68,68,.12);
+    border:1px solid rgba(239,68,68,.35);
+  }
 </style>
-  
+
 </head>
 <body>
   <div class="app">
@@ -428,9 +428,9 @@
       </div>
 
       <div class="btncapsule" role="group" aria-label="Ovládání">
-      <button class="iconbtn" id="btnCenter" title="Centrovat na mě" aria-label="Centrovat">📍</button>
-      <button class="iconbtn" id="btnLb" title="Leaderboard" aria-label="Leaderboard">🏆</button>
-      <button class="iconbtn danger" id="btnReset" title="Reset" aria-label="Reset">⟲</button>
+        <button class="iconbtn" id="btnCenter" title="Centrovat na mě" aria-label="Centrovat">📍</button>
+        <button class="iconbtn" id="btnLb" title="Leaderboard" aria-label="Leaderboard">🏆</button>
+        <button class="iconbtn danger" id="btnReset" title="Reset" aria-label="Reset">⟲</button>
       </div>
     </header>
 
@@ -505,49 +505,49 @@
       </div>
 
       <!-- ===== HELP / NÁVOD MODAL ===== -->
-<div class="modal-backdrop" id="helpBackdrop">
-  <div class="panel" id="helpModal" style="position:relative; max-width:720px; width:min(720px, 100%); border-radius:18px; bottom:auto;">
-    <div class="row" style="align-items:flex-start;">
-      <span class="badge">Návod</span>
-      <div style="flex:1"></div>
-      <button class="btn secondary" id="btnHelpClose" title="Zavřít">✕</button>
-    </div>
+      <div class="modal-backdrop" id="helpBackdrop">
+        <div class="panel" id="helpModal" style="position:relative; max-width:720px; width:min(720px, 100%); border-radius:18px; bottom:auto;">
+          <div class="row" style="align-items:flex-start;">
+            <span class="badge">Návod</span>
+            <div style="flex:1"></div>
+            <button class="btn secondary" id="btnHelpClose" title="Zavřít">✕</button>
+          </div>
 
-    <h2 style="margin-top:10px;">Jak hrát</h2>
+          <h2 style="margin-top:10px;">Jak hrát</h2>
 
-    <div class="qtext" style="margin-top:8px;">
-      <ol style="margin:0; padding-left:18px; line-height:1.5;">
-        <li><b>Povol GPS</b> (poloha funguje jen na <b>HTTPS</b> nebo <b>localhost</b>).</li>
-        <li>Na mapě vidíš <b>kontrolní body</b>. Přijdi k bodu co nejblíž.</li>
-        <li>Jakmile budeš v dosahu (tolerance se řídí přesností GPS), otevře se <b>otázka</b>.</li>
-        <li>Máš <b>3 minuty</b>. Za správnou odpověď získáš <b>body</b> a uloží se ti zbylý čas.</li>
-        <li>Splň všechny body a můžeš si uložit běh do <b>leaderboardu</b>.</li>
-      </ol>
+          <div class="qtext" style="margin-top:8px;">
+            <ol style="margin:0; padding-left:18px; line-height:1.5;">
+              <li><b>Povol GPS</b> (poloha funguje jen na <b>HTTPS</b> nebo <b>localhost</b>).</li>
+              <li>Na mapě vidíš <b>kontrolní body</b>. Přijdi k bodu co nejblíž.</li>
+              <li>Jakmile budeš v dosahu (tolerance se řídí přesností GPS), otevře se <b>otázka</b>.</li>
+              <li>Máš <b>3 minuty</b>. Za správnou odpověď získáš <b>body</b> a uloží se ti zbylý čas.</li>
+              <li>Splň všechny body a můžeš si uložit běh do <b>leaderboardu</b>.</li>
+            </ol>
 
-      <div style="margin-top:10px; color:var(--muted); font-size:12px;">
-        Tip: když se GPS „sekne“, klepni na status lištu dole (např. „GPS nereaguje“) a hra GPS restartuje.
+            <div style="margin-top:10px; color:var(--muted); font-size:12px;">
+              Tip: když se GPS „sekne“, klepni na status lištu dole (např. „GPS nereaguje“) a hra GPS restartuje.
+            </div>
+          </div>
+
+          <label style="display:flex; gap:10px; align-items:center; margin-top:12px; color:var(--muted); font-size:12px; user-select:none;">
+            <input type="checkbox" id="helpDontShow" />
+            Příště už nezobrazovat
+          </label>
+
+          <div class="actions" style="margin-top:12px;">
+            <button class="btn" id="btnHelpStart">Rozumím, jdeme hrát</button>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <label style="display:flex; gap:10px; align-items:center; margin-top:12px; color:var(--muted); font-size:12px; user-select:none;">
-      <input type="checkbox" id="helpDontShow" />
-      Příště už nezobrazovat
-    </label>
-
-    <div class="actions" style="margin-top:12px;">
-      <button class="btn" id="btnHelpStart">Rozumím, jdeme hrát</button>
-    </div>
-  </div>
-</div>
-      
     </main>
-  </div> 
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <script>
     // ===== 0) DATA =====
-    // Pozn.: Uprav souřadnice/otázky podle sebe. Body musí mít unique id.
     const TARGETS = [
       { id:"t1", name:"SDH HH", points: 100, lat: 50.7399112, lng: 15.0185144,
         question:{ text:"V jakém roce byl založen místní sbor dobrovolných hasičů?", options:{a:"1889",b:"1902",c:"1904",d:"1906"}, correct:"b"} },
@@ -575,6 +575,16 @@
     }
     function calcR(ac) { return !ac||!isFinite(ac)?25:clamp(Math.round(ac*1.2),18,50); }
 
+    // ✅ XSS-safe escape for leaderboard rendering
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#39;");
+    }
+
     // ===== 2) STATE =====
     const LS_STATE = "hh_state_v1";
     const LS_LB    = "hh_lb_v1";
@@ -586,39 +596,65 @@
     };
     let runSaved = false;
 
+    // init defaults (for fresh state)
+    function ensureTargetDefaults(){
+      TARGETS.forEach(t=>{
+        if (state.closed?.[t.id] === undefined) state.closed[t.id] = false;
+        if (state.answered?.[t.id] === undefined) state.answered[t.id] = false;
+      });
+      // guard if older state didn't have objects
+      if (!state.closed || typeof state.closed !== "object") state.closed = {};
+      if (!state.answered || typeof state.answered !== "object") state.answered = {};
+      TARGETS.forEach(t=>{
+        if (state.closed[t.id] === undefined) state.closed[t.id] = false;
+        if (state.answered[t.id] === undefined) state.answered[t.id] = false;
+      });
+    }
+
     function loadState(){
       try{
         const s = JSON.parse(localStorage.getItem(LS_STATE));
-        if (s) state = s;
+        if (s && typeof s === "object") state = s;
       } catch(e){}
+      // ✅ merge defaults for any new targets / missing keys
+      if (!state || typeof state !== "object") {
+        state = { score:0, savedSeconds:0, closed:{}, answered:{} };
+      }
+      if (typeof state.score !== "number") state.score = 0;
+      if (typeof state.savedSeconds !== "number") state.savedSeconds = 0;
+      if (!state.closed || typeof state.closed !== "object") state.closed = {};
+      if (!state.answered || typeof state.answered !== "object") state.answered = {};
+      ensureTargetDefaults();
     }
     function saveState(){
       localStorage.setItem(LS_STATE, JSON.stringify(state));
       updateHeader();
       updateMarkers();
     }
+
     function resetAll(){
       if(!confirm("Opravdu resetovat postup?")) return;
       state = { score:0, savedSeconds:0, closed:{}, answered:{} };
-      TARGETS.forEach(t=>{ state.closed[t.id]=false; state.answered[t.id]=false; });
-      if (questionOpen) closeModal();
+      ensureTargetDefaults();
+      if (questionOpen) closeModal({ reason:"system", cooldown:false });
+      closeLb();
+      closeHelp();
       runSaved = false;
       document.getElementById("btnSaveRun").textContent = "Uložit běh";
       document.getElementById("btnSaveRun").disabled = false;
       saveState();
       setStatus("Reset hotov.");
+      statusErrorOff();
+      // po resetu klidně pokračuj ve sledování GPS
     }
-
-    // init defaults
-    TARGETS.forEach(t=>{ state.closed[t.id]=false; state.answered[t.id]=false; });
 
     // ===== 3) UI refs =====
     const elScore = document.getElementById("score");
     const elSaved = document.getElementById("saved");
-    const statusBar = document.getElementById("statusBar"); // ⭐ NOVÉ
+    const statusBar = document.getElementById("statusBar");
     const elStatus = document.getElementById("statusMsg");
     const elAcc = document.getElementById("accVal");
-    
+
     const btnCenter = document.getElementById("btnCenter");
     const btnReset = document.getElementById("btnReset");
     const btnLb = document.getElementById("btnLb");
@@ -665,7 +701,7 @@
     TARGETS.forEach(t=>{
       const m = L.circleMarker([t.lat,t.lng],{
         radius:10, weight:2, color:"#38bdf8", fillColor:"#38bdf8", fillOpacity:.25
-      }).addTo(map).bindPopup(`<b>${t.name}</b><br>${t.points} bodů`);
+      }).addTo(map).bindPopup(`<b>${escapeHtml(t.name)}</b><br>${t.points} bodů`);
       markerMap[t.id]=m;
 
       const z = L.circle([t.lat,t.lng],{
@@ -696,7 +732,7 @@
     }
 
     function invalidateMap(){
-      // Leaflet potřebuje při otevření panelu přepočítat velikost
+      // Leaflet potřebuje při překrytí UI občas přepočítat velikost
       setTimeout(()=>map.invalidateSize(), 120);
     }
 
@@ -712,7 +748,7 @@
 
     // ===== 5) QUESTION FLOW =====
     let timerInt = null, remaining = 180, questionOpen = false, activeTarget = null;
-    let questionCooldownUntil = 0; // zabrání okamžitému znovuotevření otázky po zavření (ms timestamp)
+    let questionCooldownUntil = 0; // ms timestamp
     const QUESTION_COOLDOWN_MS = 6000;
 
     // highlight selected option
@@ -725,6 +761,12 @@
 
     function openQuestion(target) {
       if (questionOpen || state.closed[target.id]) return;
+
+      // když se otevírá otázka, zavři LB/Help + popupy
+      closeLb();
+      closeHelp();
+      try { map.closePopup(); } catch(e){}
+
       activeTarget = target;
       questionOpen = true;
       remaining = 180;
@@ -756,8 +798,12 @@
       }, 1000);
     }
 
-    function closeModal() {
-      questionCooldownUntil = Date.now() + QUESTION_COOLDOWN_MS;
+    function closeModal({reason="manual", cooldown=true} = {}) {
+      // cooldown pouze při manuálním zavření (lepší UX)
+      if (cooldown && reason === "manual") {
+        questionCooldownUntil = Date.now() + QUESTION_COOLDOWN_MS;
+      }
+
       questionPanel.classList.remove("open");
       questionOpen = false;
       activeTarget = null;
@@ -769,13 +815,21 @@
     function closeAsTimeout() {
       if (timerInt) { clearInterval(timerInt); timerInt = null; }
       const t = activeTarget;
+      if (!t) return;
+
       state.closed[t.id] = true;
       state.answered[t.id] = false;
+
       resultBox.style.display = "block";
       resultBox.className = "result bad";
       resultBox.textContent = `Čas vypršel. +0 bodů. Správná odpověď: ${t.question.correct.toUpperCase()}) ${t.question.options[t.question.correct]}.`;
       btnSubmit.disabled = true;
-      setTimeout(() => { closeModal(); saveState(); }, 2000);
+
+      setTimeout(() => {
+        closeModal({reason:"system", cooldown:false});
+        saveState();
+        maybeStopGpsIfDone();
+      }, 2000);
     }
 
     btnSubmit.addEventListener("click", () => {
@@ -783,20 +837,28 @@
       const chosen = document.querySelector('input[name="ans"]:checked')?.value;
       if (!chosen) { alert("Vyber jednu odpověď."); return; }
       if (timerInt) { clearInterval(timerInt); timerInt = null; }
+
       const t = activeTarget, ok = chosen === t.question.correct;
       if (ok) { state.score += t.points; state.savedSeconds += remaining; }
+
       state.answered[t.id] = ok;
       state.closed[t.id]   = true;
+
       resultBox.style.display = "block";
       resultBox.className = `result ${ok ? "good":"bad"}`;
       resultBox.textContent = ok
         ? `Správně! +${t.points} bodů a +${remaining}s uloženého času.`
         : `Špatně. +0 bodů. Správná odpověď: ${t.question.correct.toUpperCase()}) ${t.question.options[t.question.correct]}.`;
       btnSubmit.disabled = true;
-      setTimeout(() => { closeModal(); saveState(); }, 2000);
+
+      setTimeout(() => {
+        closeModal({reason:"system", cooldown:false});
+        saveState();
+        maybeStopGpsIfDone();
+      }, 2000);
     });
 
-    btnClose.addEventListener("click", closeModal);
+    btnClose.addEventListener("click", () => closeModal({reason:"manual", cooldown:true}));
 
     // ===== 10) GEOLOKACE =====
     function setStatus(t) { elStatus.textContent = t; }
@@ -805,112 +867,172 @@
       if (!statusBar) return;
       statusBar.style.borderColor = "#ef4444";
       statusBar.style.boxShadow = "0 0 0 2px rgba(239,68,68,.35)";
-      }
+    }
 
     function statusErrorOff() {
       if (!statusBar) return;
       statusBar.style.borderColor = "";
       statusBar.style.boxShadow = "";
+    }
+
+    function setStatusClickable(enabled, handler){
+      if (!statusBar) return;
+      if (enabled) {
+        statusBar.style.cursor = "pointer";
+        statusBar.onclick = handler;
+      } else {
+        statusBar.style.cursor = "default";
+        statusBar.onclick = null;
       }
+    }
 
     let gpsWatchdogTimer = null, gpsWatchId = null, gpsFirstFix = false;
     let lastFixAt = 0; // ms timestamp posledního platného fixu
 
     function resetGpsWatchdog() {
-    if (gpsWatchdogTimer) clearTimeout(gpsWatchdogTimer);
+      if (gpsWatchdogTimer) clearTimeout(gpsWatchdogTimer);
 
-  gpsWatchdogTimer = setTimeout(() => {
-    const age = lastFixAt ? (Date.now() - lastFixAt) : Infinity;
+      gpsWatchdogTimer = setTimeout(() => {
+        const age = lastFixAt ? (Date.now() - lastFixAt) : Infinity;
 
-    // Pokud už máme fix a poslední fix není "starý", nic nehlaš
-    // (Safari občas jen vynechá pár updateů)
-    if (gpsFirstFix && age < 30000) { // 30s tolerance
-      resetGpsWatchdog();
-      return;
+        // Pokud už máme fix a poslední fix není "starý", nic nehlaš
+        if (gpsFirstFix && age < 30000) { // 30s tolerance
+          resetGpsWatchdog();
+          return;
+        }
+
+        // Teprve teď hlásíme problém
+        statusErrorOn();
+        setStatus(gpsFirstFix
+          ? "⚠️ GPS chvíli neaktualizuje — klepni sem pro obnovení"
+          : "⏳ Čekám na GPS… trvá to déle — klepni sem pro obnovení"
+        );
+        setStatusClickable(true, restartGps);
+      }, 20000);
     }
 
-    // Teprve teď hlásíme problém
-    setStatus(gpsFirstFix
-      ? "⚠️ GPS chvíli neaktualizuje — klepni sem pro obnovení"
-      : "⏳ Čekám na GPS… trvá to déle — klepni sem pro obnovení"
-    );
+    function stopWatching(){
+      if (gpsWatchId !== null) {
+        try { navigator.geolocation.clearWatch(gpsWatchId); } catch(e){}
+        gpsWatchId = null;
+      }
+      if (gpsWatchdogTimer) { clearTimeout(gpsWatchdogTimer); gpsWatchdogTimer = null; }
+      setStatusClickable(false, null);
+    }
 
-    elStatus.style.cursor = "pointer";
-    elStatus.onclick = restartGps;
-  }, 20000);
-}
+    function maybeStopGpsIfDone(){
+      if (TARGETS.every(t => !!state.closed[t.id])) {
+        setStatus("Všechny body splněny! 🎉 (GPS vypnuta)");
+        statusErrorOff();
+        stopWatching();
+      }
+    }
 
     function restartGps() {
-      if (gpsWatchId !== null) navigator.geolocation.clearWatch(gpsWatchId);
-      if (gpsWatchdogTimer) clearTimeout(gpsWatchdogTimer);
-      elStatus.style.cursor = ""; elStatus.style.borderColor = ""; elStatus.onclick = null;
+      stopWatching();
       gpsFirstFix = false;
+      lastFixAt = 0;
+      statusErrorOff();
       setStatus("Obnovuji GPS…");
-      elStatus.style.cursor = "pointer";
-      elStatus.onclick = restartGps;
+      setStatusClickable(true, restartGps);
       resetGpsWatchdog();
       setTimeout(startWatching, 500);
     }
 
     function startWatching() {
+      if (!("geolocation" in navigator)) {
+        statusErrorOn();
+        setStatus("Geolokace není podporována.");
+        setStatusClickable(false, null);
+        return;
+      }
+
       gpsWatchId = navigator.geolocation.watchPosition(pos => {
         lastFix = pos;
         lastFixAt = Date.now();
-        if (!gpsFirstFix) { gpsFirstFix = true; setStatus("📍 GPS nalezena — hledám body…"); }
+
+        if (!gpsFirstFix) {
+          gpsFirstFix = true;
+          statusErrorOff();
+          setStatus("📍 GPS nalezena — hledám body…");
+        }
+
         resetGpsWatchdog();
-        elStatus.style.cursor = ""; elStatus.style.borderColor = ""; elStatus.onclick = null;
+        setStatusClickable(false, null);
+        statusErrorOff();
 
         const { latitude:la, longitude:lo, accuracy:ac } = pos.coords;
         elAcc.textContent = `${Math.round(ac)} m`;
 
         if (!userMarker) userMarker = L.marker([la,lo]).addTo(map).bindPopup("Ty");
         else userMarker.setLatLng([la,lo]);
+
         if (!accCircle) accCircle = L.circle([la,lo],{radius:ac,weight:1,color:"#94a3b8"}).addTo(map);
         else accCircle.setLatLng([la,lo]).setRadius(ac);
 
         const r = calcR(ac);
         TARGETS.forEach(t => zoneMap[t.id].setRadius(r));
 
+        // hotovo? můžeme vypnout GPS
+        if (TARGETS.every(t => !!state.closed[t.id])) {
+          maybeStopGpsIfDone();
+          return;
+        }
+
         if (questionOpen) return;
         if (Date.now() < questionCooldownUntil) return;
-        if (TARGETS.every(t => state.closed[t.id])) { setStatus("Všechny body splněny! 🎉"); return; }
 
+        // ✅ lepší UX: vyber nejbližší target v dosahu (ne první v seznamu)
         let nearest = null, nearestDist = Infinity;
+        let inRangeNearest = null, inRangeDist = Infinity;
+
         for (const t of TARGETS) {
           if (state.closed[t.id]) continue;
           const d = dist(la, lo, t.lat, t.lng);
-          if (d <= r) { openQuestion(t); return; }
+
           if (d < nearestDist) { nearestDist = d; nearest = t; }
+          if (d <= r && d < inRangeDist) { inRangeDist = d; inRangeNearest = t; }
         }
+
+        if (inRangeNearest) {
+          openQuestion(inRangeNearest);
+          return;
+        }
+
         if (nearest) setStatus(`Nejblíž: ${nearest.name} — ${Math.round(nearestDist)} m (tolerance ~${r} m)`);
 
       }, err => {
-        // Pozn.: u watchPosition se může občas vracet TIMEOUT (code 3). Po prvním fixu ho ignorujeme,
+        // u watchPosition se může vracet TIMEOUT (code 3). Po prvním fixu ho ignorujeme,
         // protože GPS může dál fungovat a jen vypadne jeden update.
         if (err.code === 3 && gpsFirstFix) return;
+
+        statusErrorOn();
+
         if (err.code === 1) setStatus("⚠️ Povolení GPS zamítnuto — povol polohu v nastavení prohlížeče.");
         else if (err.code === 2) setStatus("⚠️ GPS signál nedostupný — zkus jít ven nebo zapnout/vypnout GPS.");
         else setStatus(gpsFirstFix ? "⚠️ GPS timeout — klepni pro restart" : "⏳ Čekám na GPS… trvá to déle — klepni pro restart");
-        elStatus.style.cursor = "pointer";
-        elStatus.onclick = restartGps;
+
+        setStatusClickable(true, restartGps);
         resetGpsWatchdog();
       },
       { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 });
     }
 
     function startGeo() {
-      if (!("geolocation" in navigator)) { setStatus("Geolokace není podporována."); return; }
+      if (!("geolocation" in navigator)) {
+        statusErrorOn();
+        setStatus("Geolokace není podporována.");
+        return;
+      }
       setStatus("Hledám polohu…");
-      // když to bude trvat dlouho, watchdog nabídne restart. Uživatel může restart vyvolat i hned klikem na status.
-      elStatus.style.cursor = "pointer";
-      elStatus.onclick = restartGps;
+      statusErrorOff();
+      // Uživatel může restart vyvolat i hned klikem na status bar
+      setStatusClickable(true, restartGps);
       resetGpsWatchdog();
       startWatching();
     }
 
     // ===== 11) LEADERBOARD =====
-    // Supabase (volitelné) — když nechceš, můžeš to celé ignorovat a ukládat jen lokálně.
-    // Pokud chceš Supabase, vyplň:
     const SUPABASE_URL = "";       // např. https://xyzcompany.supabase.co
     const SUPABASE_ANON_KEY = "";  // anon key
     let sb = null, sbReady = false;
@@ -926,7 +1048,7 @@
       }
     }
 
-    function loadLbLocal() { try { return JSON.parse(localStorage.getItem(LS_LB))??[]; } catch { return []; } }
+    function loadLbLocal() { try { return JSON.parse(localStorage.getItem(LS_LB)) ?? []; } catch { return []; } }
     function saveLbLocal(a) { localStorage.setItem(LS_LB, JSON.stringify(a)); }
 
     async function renderLb() {
@@ -963,31 +1085,43 @@
         return;
       }
 
+      // ✅ XSS-safe rendering
       lbBody.innerHTML = merged.map((x,i)=>{
         const d = x.created_at ? new Date(x.created_at) : null;
         const dateStr = d ? d.toLocaleDateString("cs-CZ") : "—";
+        const nick = escapeHtml((x.nickname || "—").slice(0,16));
+        const score = Number(x.score ?? 0);
+        const saved = Number(x.saved_seconds ?? 0);
         return `<tr>
           <td>${i+1}</td>
-          <td>${(x.nickname||"—").slice(0,16)}</td>
-          <td><b>${x.score}</b></td>
-          <td>${x.saved_seconds}s</td>
-          <td>${dateStr}</td>
+          <td>${nick}</td>
+          <td><b>${score}</b></td>
+          <td>${saved}s</td>
+          <td>${escapeHtml(dateStr)}</td>
         </tr>`;
       }).join("");
     }
 
     function openLb(){
+      // zavři jiné UI vrstvy
+      if (questionOpen) closeModal({reason:"system", cooldown:false});
+      closeHelp();
+      try { map.closePopup(); } catch(e){}
+
       lbBox.style.display = "block";
       renderLb();
+      invalidateMap();
     }
     function closeLb(){
       lbBox.style.display = "none";
+      invalidateMap();
     }
     btnLb.addEventListener("click", ()=> lbBox.style.display==="block" ? closeLb() : openLb() );
     btnLbClose.addEventListener("click", closeLb);
 
     btnSaveRun.addEventListener("click", async ()=>{
       if (runSaved) return;
+
       const nick = (nickInput.value || "").trim() || "Anonym";
       const entry = {
         nickname: nick,
@@ -1021,50 +1155,63 @@
     });
 
     // ===== HELP / NÁVOD =====
-const LS_HELP = "hh_help_v1";
-const helpBackdrop = document.getElementById("helpBackdrop");
-const btnHelpClose  = document.getElementById("btnHelpClose");
-const btnHelpStart  = document.getElementById("btnHelpStart");
-const helpDontShow  = document.getElementById("helpDontShow");
+    const LS_HELP = "hh_help_v1";
+    const helpBackdrop = document.getElementById("helpBackdrop");
+    const btnHelpClose  = document.getElementById("btnHelpClose");
+    const btnHelpStart  = document.getElementById("btnHelpStart");
+    const helpDontShow  = document.getElementById("helpDontShow");
 
-function openHelp() {
-  // zavři případné otevřené Leaflet popupy (aby nelezly přes modal)
-  try { map.closePopup(); } catch(e) {}
+    function openHelp() {
+      // zavři ostatní vrstvy (ať se UI nepřekrývá)
+      if (questionOpen) closeModal({reason:"system", cooldown:false});
+      closeLb();
 
-  helpBackdrop.classList.add("show");
-  // když je otevřený help, nescrolluj stránku (jen modal)
-  document.body.style.overflow = "hidden";
-}
+      // zavři případné Leaflet popupy
+      try { map.closePopup(); } catch(e) {}
 
-function closeHelp() {
-  helpBackdrop.classList.remove("show");
-  document.body.style.overflow = "hidden"; // ty máš body overflow:hidden, necháváme konzistentní
-}
+      helpBackdrop.classList.add("show");
+      document.body.style.overflow = "hidden";
+      invalidateMap();
+    }
 
-function maybeShowHelpOnStart() {
-  const flag = localStorage.getItem(LS_HELP);
-  if (flag === "hide") return;
-  openHelp();
-}
+    function closeHelp() {
+      helpBackdrop.classList.remove("show");
+      document.body.style.overflow = "hidden";
+      invalidateMap();
+    }
 
-btnHelpClose.addEventListener("click", () => {
-  if (helpDontShow.checked) localStorage.setItem(LS_HELP, "hide");
-  closeHelp();
-});
+    function maybeShowHelpOnStart() {
+      const flag = localStorage.getItem(LS_HELP);
+      if (flag === "hide") return;
+      openHelp();
+    }
 
-btnHelpStart.addEventListener("click", () => {
-  if (helpDontShow.checked) localStorage.setItem(LS_HELP, "hide");
-  closeHelp();
-});
+    btnHelpClose.addEventListener("click", () => {
+      if (helpDontShow.checked) localStorage.setItem(LS_HELP, "hide");
+      closeHelp();
+    });
 
-// klik mimo okno zavře (volitelné)
-helpBackdrop.addEventListener("click", (e) => {
-  if (e.target === helpBackdrop) {
-    if (helpDontShow.checked) localStorage.setItem(LS_HELP, "hide");
-    closeHelp();
-  }
-});
-    
+    btnHelpStart.addEventListener("click", () => {
+      if (helpDontShow.checked) localStorage.setItem(LS_HELP, "hide");
+      closeHelp();
+    });
+
+    // klik mimo okno zavře (volitelné)
+    helpBackdrop.addEventListener("click", (e) => {
+      if (e.target === helpBackdrop) {
+        if (helpDontShow.checked) localStorage.setItem(LS_HELP, "hide");
+        closeHelp();
+      }
+    });
+
+    // ✅ ESC zavírá help / leaderboard / otázku (desktop)
+    window.addEventListener("keydown", (e)=>{
+      if (e.key !== "Escape") return;
+      if (helpBackdrop.classList.contains("show")) { closeHelp(); return; }
+      if (lbBox.style.display === "block") { closeLb(); return; }
+      if (questionOpen) { closeModal({reason:"manual", cooldown:true}); return; }
+    });
+
     // ===== 12) STARTUP =====
     loadState();
     updateHeader();
@@ -1082,15 +1229,3 @@ helpBackdrop.addEventListener("click", (e) => {
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
